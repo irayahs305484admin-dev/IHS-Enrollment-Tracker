@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IHS Enrollment Tracker</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel (Compiles JSX in the browser) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- jsPDF for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+      @keyframes shimmer { 100% { transform: translateX(100%); } }
+      .animate-shimmer { animation: shimmer 2s infinite; }
+      body { -webkit-font-smoothing: antialiased; }
+    </style>
+  </head>
+  <body class="bg-slate-100 font-sans text-slate-800 min-h-screen">
+    
+    <div id="root"></div>
+
+    <!-- Firebase Modules Loading -->
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+      import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+      import { getFirestore, collection, doc, setDoc, onSnapshot, addDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+      
+      // Expose Firebase tools to the global window for React to use
+      window.FirebaseAPI = {
+        initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken,
+        getFirestore, collection, doc, setDoc, onSnapshot, addDoc, updateDoc, deleteDoc
+      };
+      
+      // Tell React that Firebase is ready
+      window.dispatchEvent(new Event('firebase-loaded'));
+    </script>
+
+    <!-- React Application Code -->
+    <script type="text/babel">
+      const { useState, useEffect } = React;
+
+      // ==========================================
+      // SVG ICON UTILITY
+      // ==========================================
+      const Icon = ({ name, className = "", size = 24, title }) => {
+        const icons = {
+          GraduationCap: <path d="M22 10v6M2 10l10-5 10 5-10 5zM6 12v5c0 2 2 3 6 3s6-1 6-3v-5" />,
+          CheckCircle2: <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zM9 12l2 2 4-4" />,
+          Circle: <circle cx="12" cy="12" r="10" />,
+          LogOut: <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />,
+          Plus: <path d="M12 5v14M5 12h14" />,
+          Trash2: <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6" />,
+          Users: <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />,
+          Settings: <path d="M12.22 2h-.44a2 2 0 0 0-2 1.94l-.15 1.57a8.03 8.03 0 0 1-1.39.8l-1.44-.65a2 2 0 0 0-2.31.54l-1.25 1.25a2 2 0 0 0-.54 2.31l.65 1.44a8.03 8.03 0 0 1-.8 1.39l-1.57.15A2 2 0 0 0 2 11.78v.44a2 2 0 0 0 1.94 2l1.57.15c.19.53.43 1.04.8 1.39l-.65 1.44a2 2 0 0 0 .54 2.31l1.25 1.25a2 2 0 0 0 2.31.54l1.44-.65c.49.37.99.61 1.39.8l.15 1.57A2 2 0 0 0 11.78 22h.44a2 2 0 0 0 2-1.94l.15-1.57c.53-.19 1.04-.43 1.39-.8l1.44.65a2 2 0 0 0 2.31-.54l1.25-1.25a2 2 0 0 0 .54-2.31l-.65-1.44c.37-.49.61-.99.8-1.39l1.57-.15A2 2 0 0 0 22 12.22v-.44a2 2 0 0 0-1.94-2l-1.57-.15a8.03 8.03 0 0 1-.8-1.39l.65-1.44a2 2 0 0 0-.54-2.31l-1.25-1.25a2 2 0 0 0-2.31-.54l-1.44.65a8.03 8.03 0 0 1-1.39-.8l-.15-1.57A2 2 0 0 0 12.22 2zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" />,
+          ChevronRight: <path d="M9 18l6-6-6-6" />,
+          BookOpen: <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />,
+          User: <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" />,
+          AlertCircle: <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zM12 8v4M12 16h.01" />,
+          Award: <g><path d="M12 15c2.761 0 5-2.239 5-5s-2.239-5-5-5-5 2.239-5 5 2.239 5 5 5z"/><path d="M8.21 13.89L7 23l5-3 5 3-1.21-9.11" /></g>,
+          Download: <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />,
+          Upload: <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+        };
+        return (
+          <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+            {title && <title>{title}</title>}
+            {icons[name]}
+          </svg>
+        );
+      };
+
+      // ==========================================
+      // BOOTSTRAP WRAPPER
+      // ==========================================
+      function AppWrapper() {
+        const [isFirebaseLoaded, setIsFirebaseLoaded] = useState(!!window.FirebaseAPI);
+
+        useEffect(() => {
+          if (isFirebaseLoaded) return;
+          const handleLoad = () => setIsFirebaseLoaded(true);
+          window.addEventListener('firebase-loaded', handleLoad);
+          return () => window.removeEventListener('firebase-loaded', handleLoad);
+        }, [isFirebaseLoaded]);
+
+        if (!isFirebaseLoaded) {
+          return (
+             <div className="min-h-screen flex items-center justify-center">
+                <div className="animate-pulse text-blue-800 font-medium">Initializing Tracker...</div>
+             </div>
+          );
+        }
+
+        return <MainApp />;
+      }
+
+      // ==========================================
+      // MAIN APP LOGIC
+      // ==========================================
+      const APP_ID = typeof __app_id !== 'undefined' ? __app_id : 'ihs-tracker-app';
+      const DEFAULT_STEPS = [
+        { id: 'step_1', text: 'Submit Application Form' },
+        { id: 'step_2', text: 'Provide Previous Academic Records' },
+        { id: 'step_3', text: 'Attend Admissions Interview' },
+        { id: 'step_4', text: 'Pay Enrollment Fee' },
+        { id: 'step_5', text: 'Receive Class Schedule' }
+      ];
+
+      // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      // ADMIN: REPLACE THIS CONFIG WITH YOUR OWN
+      // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      const userFirebaseConfig = {
+        apiKey: "AIzaSyDTdjusgcks4NCrcpMkX3Lu4NVMjYsp99o",
+        authDomain: "ihs-enrollment-tracker.firebaseapp.com",
+        projectId: "ihs-enrollment-tracker",
+        storageBucket: "ihs-enrollment-tracker.firebasestorage.app",
+        messagingSenderId: "748669937245",
+        appId: "1:748669937245:web:64d66a0b962207de238fb4"
+      };
+
+      const isPreviewEnvironment = typeof __firebase_config !== 'undefined';
+      const firebaseConfig = isPreviewEnvironment ? JSON.parse(__firebase_config) : userFirebaseConfig;
+
+      function MainApp() {
+        const [firebaseUser, setFirebaseUser] = useState(null);
+        const [authError, setAuthError] = useState('');
+        
+        // App State
+        const [role, setRole] = useState(null); // 'admin' | 'client' | null
+        const [loggedInUsername, setLoggedInUsername] = useState('');
+        const [globalSteps, setGlobalSteps] = useState([]);
+        const [clients, setClients] = useState([]);
+        const [certTemplate, setCertTemplate] = useState(null);
+        const [isLoading, setIsLoading] = useState(true);
+
+        const isConfigured = isPreviewEnvironment || firebaseConfig.apiKey !== "YOUR_API_KEY";
+        const {
+          initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken,
+          getFirestore, collection, doc, setDoc, onSnapshot, addDoc, updateDoc, deleteDoc
+        } = window.FirebaseAPI;
+
+        // --- 1. Firebase Authentication ---
+        useEffect(() => {
+          if (!isConfigured) {
+            setIsLoading(false);
+            return;
+          }
+
+          const app = initializeApp(firebaseConfig);
+          const auth = getAuth(app);
+          
+          const initAuth = async () => {
+            try {
+              if (isPreviewEnvironment && typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await signInWithCustomToken(auth, __initial_auth_token);
+              } else {
+                await signInAnonymously(auth);
+              }
+            } catch (err) {
+              console.error("Auth Error:", err);
+              setAuthError("Failed to connect to the database.");
+              setIsLoading(false);
+            }
+          };
+          initAuth();
+
+          const unsubscribe = onAuthStateChanged(auth, (user) => {
+            setFirebaseUser(user);
+            if (!user) setIsLoading(false);
+          });
+
+          return () => unsubscribe();
+        }, [isConfigured]);
+
+        // --- 2. Firestore Data Sync ---
+        useEffect(() => {
+          if (!firebaseUser || !isConfigured) return;
+
+          const app = initializeApp(firebaseConfig);
+          const db = getFirestore(app);
+
+          // Sync Global Settings
+          const settingsRef = collection(db, 'artifacts', APP_ID, 'public', 'data', 'settings');
+          const unsubSettings = onSnapshot(settingsRef, (snapshot) => {
+            let foundGlobal = false;
+            snapshot.forEach((docSnap) => {
+              if (docSnap.id === 'global') {
+                setGlobalSteps(docSnap.data().steps || []);
+                foundGlobal = true;
+              } else if (docSnap.id === 'certificate') {
+                setCertTemplate(docSnap.data().templateData || null);
+              }
+            });
+            if (!foundGlobal) {
+              setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'settings', 'global'), { steps: DEFAULT_STEPS });
+            }
+          }, (err) => console.error("Settings Sync Error:", err));
+
+          // Sync Enrollments
+          const enrollmentsRef = collection(db, 'artifacts', APP_ID, 'public', 'data', 'enrollments');
+          const unsubEnrollments = onSnapshot(enrollmentsRef, (snapshot) => {
+            const clientsData = [];
+            snapshot.forEach((docSnap) => {
+              clientsData.push({ id: docSnap.id, ...docSnap.data() });
+            });
+            clientsData.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            setClients(clientsData);
+            setIsLoading(false);
+          }, (err) => {
+            console.error("Enrollment Sync Error:", err);
+            setIsLoading(false);
+          });
+
+          return () => {
+            unsubSettings();
+            unsubEnrollments();
+          };
+        }, [firebaseUser, isConfigured]);
+
+        const handleLogin = (username) => {
+          const cleanUsername = username.trim();
+          if (cleanUsername === 'IHS_Admin') {
+            setRole('admin');
+            setLoggedInUsername('IHS_Admin');
+            return true;
+          }
+          const client = clients.find(c => c.username === cleanUsername);
+          if (client) {
+            setRole('client');
+            setLoggedInUsername(cleanUsername);
+            return true;
+          }
+          return false;
+        };
+
+        const handleLogout = () => {
+          setRole(null);
+          setLoggedInUsername('');
+        };
+
+        if (!isConfigured) {
+          return (
+            <div className="min-h-screen flex items-center justify-center p-4 bg-slate-100">
+              <div className="bg-white rounded-xl shadow-xl p-8 max-w-lg w-full text-center border-t-4 border-red-500">
+                <Icon name="AlertCircle" size={48} className="text-red-500 mx-auto mb-4" />
+                <h1 className="text-2xl font-bold text-slate-800 mb-2">Configuration Required</h1>
+                <p className="text-slate-600 mb-6">
+                  Before the app can run, you must replace the <code>firebaseConfig</code> object in the Google Apps Script <code>Index.html</code> file with your actual project keys.
+                </p>
+                <p className="text-sm text-slate-500">Please refer to Step 3 of the Deployment Guide.</p>
+              </div>
+            </div>
+          );
+        }
+
+        if (isLoading) {
+          return (
+            <div className="min-h-screen flex items-center justify-center">
+              <div className="animate-pulse flex flex-col items-center">
+                <Icon name="GraduationCap" size={48} className="text-blue-800 mb-4" />
+                <p className="text-blue-800 font-medium">Loading IHS Portal...</p>
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <div>
+            {!role && <LoginScreen onLogin={handleLogin} authError={authError} />}
+            {role === 'admin' && (
+              <AdminPortal 
+                clients={clients} 
+                globalSteps={globalSteps}
+                certTemplate={certTemplate}
+                onLogout={handleLogout}
+                db={getFirestore(initializeApp(firebaseConfig))} 
+              />
+            )}
+            {role === 'client' && (
+              <ClientPortal 
+                client={clients.find(c => c.username === loggedInUsername)} 
+                globalSteps={globalSteps} 
+                onLogout={handleLogout} 
+              />
+            )}
+          </div>
+        );
+      }
+
+      // ==========================================
+      // LOGIN SCREEN
+      // ==========================================
+      function LoginScreen({ onLogin, authError }) {
+        const [username, setUsername] = useState('');
+        const [error, setError] = useState('');
+
+        const handleSubmit = (e) => {
+          e.preventDefault();
+          setError('');
+          if (!username.trim()) {
+            setError('Please enter a username');
+            return;
+          }
+          const success = onLogin(username);
+          if (!success) {
+            setError('Username not found. Please check with the administration.');
+          }
+        };
+
+        return (
+          <div className="min-h-screen flex items-center justify-center p-4">
+            <div className="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden">
+              <div className="bg-blue-900 p-8 text-center">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-yellow-400 mb-4 shadow-lg">
+                  <Icon name="GraduationCap" size={32} className="text-blue-900" />
+                </div>
+                <h1 className="text-2xl font-bold text-white tracking-wide">IHS Institute</h1>
+                <p className="text-blue-200 mt-2 text-sm">Enrollment Tracking Portal</p>
+              </div>
+              
+              <div className="p-8">
+                {(error || authError) && (
+                  <div className="mb-6 p-3 bg-red-50 text-red-700 text-sm rounded-lg flex items-start">
+                    <Icon name="AlertCircle" size={16} className="mt-0.5 mr-2 flex-shrink-0" />
+                    <span>{error || authError}</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Username</label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Icon name="User" size={18} className="text-slate-400" />
+                      </div>
+                      <input
+                        type="text"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        placeholder="Enter your provided username"
+                      />
+                    </div>
+                  </div>
+                  
+                  <button
+                    type="submit"
+                    className="w-full bg-blue-900 text-white font-medium py-3 px-4 rounded-xl hover:bg-blue-800 transition-colors shadow-md flex justify-center items-center"
+                  >
+                    Access Portal
+                    <Icon name="ChevronRight" size={18} className="ml-2" />
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      // ==========================================
+      // ADMIN PORTAL
+      // ==========================================
+      function AdminPortal({ clients, globalSteps, certTemplate, onLogout, db }) {
+        const [activeTab, setActiveTab] = useState('clients');
+
+        return (
+          <div className="min-h-screen flex flex-col md:flex-row">
+            <div className="w-full md:w-64 bg-blue-900 text-white flex flex-col shadow-xl z-10">
+              <div className="p-6 border-b border-blue-800 flex items-center">
+                <Icon name="GraduationCap" size={28} className="text-yellow-400 mr-3" />
+                <div>
+                  <h2 className="font-bold text-lg">Admin Portal</h2>
+                  <p className="text-xs text-blue-300">IHS Enrollment</p>
+                </div>
+              </div>
+              
+              <nav className="flex-1 p-4 space-y-2">
+                <button onClick={() => setActiveTab('clients')} className={`w-full flex items-center px-4 py-3 rounded-lg transition-colors ${activeTab === 'clients' ? 'bg-blue-800 text-white' : 'text-blue-200 hover:bg-blue-800/50'}`}>
+                  <Icon name="Users" size={20} className="mr-3" />
+                  Manage Students
+                </button>
+                <button onClick={() => setActiveTab('steps')} className={`w-full flex items-center px-4 py-3 rounded-lg transition-colors ${activeTab === 'steps' ? 'bg-blue-800 text-white' : 'text-blue-200 hover:bg-blue-800/50'}`}>
+                  <Icon name="Settings" size={20} className="mr-3" />
+                  Enrollment Steps
+                </button>
+                <button onClick={() => setActiveTab('certificate')} className={`w-full flex items-center px-4 py-3 rounded-lg transition-colors ${activeTab === 'certificate' ? 'bg-blue-800 text-white' : 'text-blue-200 hover:bg-blue-800/50'}`}>
+                  <Icon name="Award" size={20} className="mr-3" />
+                  Certificate Template
+                </button>
+              </nav>
+
+              <div className="p-4 border-t border-blue-800">
+                <button onClick={onLogout} className="w-full flex items-center px-4 py-3 text-red-300 hover:bg-red-900/30 rounded-lg transition-colors">
+                  <Icon name="LogOut" size={20} className="mr-3" />
+                  Logout
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-auto bg-slate-50 p-6 md:p-10">
+              {activeTab === 'clients' && <AdminClients clients={clients} globalSteps={globalSteps} certTemplate={certTemplate} db={db} />}
+              {activeTab === 'steps' && <AdminSteps globalSteps={globalSteps} db={db} />}
+              {activeTab === 'certificate' && <AdminCertificate certTemplate={certTemplate} db={db} />}
+            </div>
+          </div>
+        );
+      }
+
+      function AdminClients({ clients, globalSteps, certTemplate, db }) {
+        const [newClientName, setNewClientName] = useState('');
+        const [newClientUsername, setNewClientUsername] = useState('');
+        const [expandedClient, setExpandedClient] = useState(null);
+        const [error, setError] = useState('');
+        const [successMessage, setSuccessMessage] = useState('');
+        const { addDoc, collection, updateDoc, doc, deleteDoc } = window.FirebaseAPI;
+
+        const handleAddClient = async (e) => {
+          e.preventDefault();
+          setError('');
+          if (!newClientName.trim() || !newClientUsername.trim()) { setError('Both Name and Username are required.'); return; }
+          if (clients.some(c => c.username === newClientUsername.trim())) { setError('This username is already taken.'); return; }
+
+          try {
+            await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'enrollments'), {
+              name: newClientName.trim(),
+              username: newClientUsername.trim(),
+              completedSteps: [],
+              createdAt: Date.now()
+            });
+            setNewClientName('');
+            setNewClientUsername('');
+          } catch (err) {
+            setError('Failed to add client. Ensure connection is active.');
+          }
+        };
+
+        const toggleStepForClient = async (clientId, stepId, currentCompletedArray) => {
+          const isCompleted = currentCompletedArray.includes(stepId);
+          let newArray = [...currentCompletedArray];
+          if (isCompleted) newArray = newArray.filter(id => id !== stepId);
+          else newArray.push(stepId);
+
+          try {
+            await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'enrollments', clientId), { completedSteps: newArray });
+          } catch (err) { console.error("Update error", err); }
+        };
+
+        const handleDeleteClient = async (clientId, e) => {
+          e.stopPropagation();
+          try {
+            await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'enrollments', clientId));
+          } catch (err) { console.error("Delete error", err); }
+        }
+
+        const handleGeneratePDF = (client, e) => {
+          e.stopPropagation();
+          if (!certTemplate) {
+            setError("Please upload a certificate template first in the 'Certificate Template' tab.");
+            setTimeout(() => setError(''), 5000);
+            return;
+          }
+          
+          try {
+            setSuccessMessage(`Generating certificate for ${client.name}...`);
+            const { jsPDF } = window.jspdf;
+            // Half A4 Portrait (A5 size format)
+            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a5' });
+            
+            // Add background template image (A5 size is 148.5 x 210 mm)
+            doc.addImage(certTemplate, 'JPEG', 0, 0, 148.5, 210);
+            
+            // Add Client Name (Centered on A5 Portrait)
+            doc.setFontSize(26);
+            doc.setTextColor(30, 30, 30);
+            doc.text(client.name, 74.25, 105, { align: "center" });
+            
+            // Add Date Issued
+            doc.setFontSize(12);
+            doc.setTextColor(80, 80, 80);
+            const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+            doc.text(`Date Issued: ${dateStr}`, 74.25, 120, { align: "center" });
+            
+            // Save PDF
+            doc.save(`Certificate_${client.name.replace(/\s+/g, '_')}.pdf`);
+            setSuccessMessage('');
+          } catch (err) {
+            console.error("PDF Generation Error", err);
+            setError("Failed to generate PDF. Make sure the template is a valid image.");
+            setTimeout(() => setError(''), 5000);
+          }
+        };
+
+        return (
+          <div className="max-w-4xl mx-auto">
+            <div className="mb-8">
+              <h2 className="text-2xl font-bold text-slate-800 mb-2">Student Directory</h2>
+              <p className="text-slate-500">Manage client enrollments and track their specific progress.</p>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-8">
+              <h3 className="font-semibold text-lg text-slate-800 mb-4 flex items-center">
+                <Icon name="Plus" size={20} className="mr-2 text-blue-600" /> Enroll New Student
+              </h3>
+              {error && <div className="mb-4 text-sm text-red-600 bg-red-50 p-3 rounded-lg">{error}</div>}
+              {successMessage && <div className="mb-4 text-sm text-green-600 bg-green-50 p-3 rounded-lg">{successMessage}</div>}
+              
+              <form onSubmit={handleAddClient} className="flex flex-col md:flex-row gap-4">
+                <input type="text" placeholder="Full Name" value={newClientName} onChange={(e) => setNewClientName(e.target.value)} className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                <input type="text" placeholder="Login Username" value={newClientUsername} onChange={(e) => setNewClientUsername(e.target.value)} className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors whitespace-nowrap">Create Record</button>
+              </form>
+            </div>
+
+            <div className="space-y-4">
+              {clients.length === 0 ? (
+                <div className="text-center py-10 text-slate-500 bg-white rounded-xl border border-dashed border-slate-300">No students enrolled yet.</div>
+              ) : (
+                clients.map(client => {
+                  const completedCount = globalSteps.filter(s => (client.completedSteps || []).includes(s.id)).length;
+                  const progress = globalSteps.length === 0 ? 0 : Math.round((completedCount / globalSteps.length) * 100);
+                  const isExpanded = expandedClient === client.id;
+
+                  return (
+                    <div key={client.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                      <div className="p-5 flex flex-col md:flex-row md:items-center justify-between cursor-pointer hover:bg-slate-50" onClick={() => setExpandedClient(isExpanded ? null : client.id)}>
+                        <div className="flex-1 mb-4 md:mb-0">
+                          <h4 className="font-bold text-lg text-slate-800">{client.name}</h4>
+                          <p className="text-sm text-slate-500">Username: <span className="font-mono bg-slate-100 px-1 py-0.5 rounded text-slate-700">{client.username}</span></p>
+                        </div>
+                        <div className="flex items-center gap-6">
+                          <div className="text-right">
+                            <div className="text-sm font-medium text-slate-600 mb-1">{progress}% Complete</div>
+                            <div className="w-32 h-2 bg-slate-200 rounded-full overflow-hidden">
+                              <div className="h-full bg-green-500 transition-all duration-500" style={{ width: `${progress}%` }} />
+                            </div>
+                          </div>
+                          <button onClick={(e) => handleGeneratePDF(client, e)} className="text-blue-600 hover:text-blue-800 p-2 rounded-full hover:bg-blue-50 transition-colors" title="Download Certificate PDF">
+                            <Icon name="Award" size={24} />
+                          </button>
+                          <button onClick={(e) => handleDeleteClient(client.id, e)} className="text-slate-400 hover:text-red-500 p-2 rounded-full hover:bg-red-50 transition-colors" title="Delete Client">
+                            <Icon name="Trash2" size={18} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {isExpanded && (
+                        <div className="border-t border-slate-100 bg-slate-50 p-5">
+                          <h5 className="text-sm font-semibold text-slate-600 mb-4 uppercase tracking-wider">Enrollment Checklist</h5>
+                          <div className="space-y-2">
+                            {globalSteps.map((step) => {
+                              const isDone = (client.completedSteps || []).includes(step.id);
+                              return (
+                                <div key={step.id} onClick={() => toggleStepForClient(client.id, step.id, client.completedSteps || [])}
+                                  className={`flex items-center p-3 rounded-lg cursor-pointer transition-colors border ${isDone ? 'bg-green-50 border-green-200' : 'bg-white border-slate-200 hover:border-blue-300'}`}>
+                                  <div className="mr-4 text-slate-300">
+                                    {isDone ? <Icon name="CheckCircle2" size={24} className="text-green-600" /> : <Icon name="Circle" size={24} />}
+                                  </div>
+                                  <span className={`font-medium ${isDone ? 'text-green-800 line-through opacity-70' : 'text-slate-700'}`}>{step.text}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        );
+      }
+
+      function AdminSteps({ globalSteps, db }) {
+        const [newStepText, setNewStepText] = useState('');
+        const { setDoc, doc } = window.FirebaseAPI;
+
+        const handleSaveSteps = async (newStepsArray) => {
+          try { await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'settings', 'global'), { steps: newStepsArray }); } 
+          catch (err) { console.error("Error saving steps", err); }
+        };
+
+        const handleAddStep = (e) => {
+          e.preventDefault();
+          if (!newStepText.trim()) return;
+          const newStep = { id: `step_${Date.now()}`, text: newStepText.trim() };
+          handleSaveSteps([...globalSteps, newStep]);
+          setNewStepText('');
+        };
+
+        return (
+          <div className="max-w-3xl mx-auto">
+            <div className="mb-8">
+              <h2 className="text-2xl font-bold text-slate-800 mb-2">Configure Enrollment Steps</h2>
+              <p className="text-slate-500">Define the global sequence of tasks that clients must complete.</p>
+            </div>
+            
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+              <div className="p-6">
+                <ul className="space-y-3">
+                  {globalSteps.map((step, index) => (
+                    <li key={step.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-100 group">
+                      <div className="flex items-center">
+                        <span className="w-8 h-8 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-sm mr-4 shrink-0">{index + 1}</span>
+                        <span className="font-medium text-slate-700">{step.text}</span>
+                      </div>
+                      <button onClick={() => handleSaveSteps(globalSteps.filter(s => s.id !== step.id))} className="text-slate-400 hover:text-red-500 p-2 opacity-0 group-hover:opacity-100 transition-all">
+                        <Icon name="Trash2" size={18} />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="bg-slate-50 border-t border-slate-200 p-6">
+                <form onSubmit={handleAddStep} className="flex items-center">
+                  <input type="text" value={newStepText} onChange={(e) => setNewStepText(e.target.value)} placeholder="e.g., Submit Birth Certificate" className="flex-1 px-4 py-3 border border-slate-300 rounded-l-lg outline-none" />
+                  <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-r-lg flex items-center">
+                    <Icon name="Plus" size={18} className="mr-2" /> Add Step
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      function AdminCertificate({ certTemplate, db }) {
+        const [preview, setPreview] = useState(certTemplate);
+        const [isSaving, setIsSaving] = useState(false);
+        const [message, setMessage] = useState({ text: '', type: '' });
+        const { setDoc, doc } = window.FirebaseAPI;
+
+        const handleImageUpload = (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+          
+          if (!file.type.match('image.*')) {
+            setMessage({ text: 'Please upload an image file (JPG/PNG).', type: 'error' });
+            return;
+          }
+
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const img = new window.Image();
+            img.src = event.target.result;
+            img.onload = () => {
+              // Resize image via canvas to keep it under Firestore's 1MB limit
+              const canvas = document.createElement('canvas');
+              const maxWidth = 800; 
+              const scale = Math.min(maxWidth / img.width, 1);
+              canvas.width = img.width * scale;
+              canvas.height = img.height * scale;
+              
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              
+              const compressedBase64 = canvas.toDataURL('image/jpeg', 0.85);
+              setPreview(compressedBase64);
+              setMessage({ text: 'Preview generated. Click Save to upload.', type: 'info' });
+            };
+          };
+          reader.readAsDataURL(file);
+        };
+
+        const saveTemplate = async () => {
+          if (!preview) return;
+          setIsSaving(true);
+          setMessage({ text: '', type: '' });
+          try {
+            await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'settings', 'certificate'), { 
+              templateData: preview,
+              updatedAt: Date.now()
+            });
+            setMessage({ text: 'Certificate template saved successfully!', type: 'success' });
+          } catch (err) {
+            console.error("Error saving template", err);
+            setMessage({ text: 'Failed to save template. Please check console.', type: 'error' });
+          }
+          setIsSaving(false);
+        };
+
+        return (
+          <div className="max-w-3xl mx-auto">
+            <div className="mb-8">
+              <h2 className="text-2xl font-bold text-slate-800 mb-2">Certificate of Enrollment</h2>
+              <p className="text-slate-500">Upload a background image (Half A4 / A5 Portrait aspect ratio recommended) for the generated certificate. The system will automatically overlay the student's name and the date issued over this image.</p>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden p-6">
+              
+              {message.text && (
+                <div className={`mb-6 p-4 rounded-lg flex items-start ${
+                  message.type === 'error' ? 'bg-red-50 text-red-700' : 
+                  message.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-blue-50 text-blue-700'
+                }`}>
+                  <Icon name={message.type === 'error' ? 'AlertCircle' : 'CheckCircle2'} size={20} className="mr-2 mt-0.5" />
+                  {message.text}
+                </div>
+              )}
+
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-slate-700 mb-2">Upload New Template</label>
+                <div className="flex items-center justify-center w-full">
+                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-300 border-dashed rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors">
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      <Icon name="Upload" size={28} className="text-slate-400 mb-2" />
+                      <p className="mb-2 text-sm text-slate-500"><span className="font-semibold">Click to upload</span></p>
+                      <p className="text-xs text-slate-500">PNG or JPG</p>
+                    </div>
+                    <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
+                  </label>
+                </div>
+              </div>
+
+              {preview && (
+                <div className="mb-6">
+                  <h4 className="text-sm font-medium text-slate-700 mb-2">Template Preview</h4>
+                  <div className="border border-slate-200 rounded-lg overflow-hidden bg-slate-100 relative shadow-sm max-w-[350px] mx-auto aspect-[1/1.414]">
+                    <img src={preview} alt="Certificate Template Preview" className="w-full h-full object-cover" />
+                    
+                    {/* Visual mockup of where text will be placed */}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center p-4">
+                      <div className="text-2xl sm:text-3xl font-serif text-slate-800 drop-shadow-sm mt-8">[ Student Name ]</div>
+                      <div className="text-sm text-slate-600 mt-4 drop-shadow-sm">Date Issued: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end pt-4 border-t border-slate-100">
+                <button 
+                  onClick={saveTemplate} 
+                  disabled={!preview || isSaving}
+                  className={`flex items-center px-6 py-2.5 rounded-lg text-white font-medium transition-colors ${
+                    !preview || isSaving ? 'bg-slate-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 shadow-sm'
+                  }`}
+                >
+                  {isSaving ? 'Saving...' : 'Save Template'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      // ==========================================
+      // CLIENT PORTAL
+      // ==========================================
+      function ClientPortal({ client, globalSteps, onLogout }) {
+        if (!client) return null;
+        const completedSet = new Set(client.completedSteps || []);
+        
+        let nextStepIndex = globalSteps.findIndex(step => !completedSet.has(step.id));
+        if (nextStepIndex === -1 && globalSteps.length > 0) nextStepIndex = globalSteps.length; 
+
+        return (
+          <div className="min-h-screen bg-slate-50">
+            <header className="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-sm">
+              <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                <div className="flex items-center">
+                  <div className="bg-blue-900 p-1.5 rounded-lg mr-3 shadow-sm">
+                    <Icon name="GraduationCap" size={22} className="text-yellow-400" />
+                  </div>
+                  <h1 className="font-bold text-xl text-slate-800 tracking-tight">IHS Tracker</h1>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="hidden sm:block text-right">
+                    <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Student</div>
+                    <div className="text-sm font-bold text-slate-800">{client.name}</div>
+                  </div>
+                  <button onClick={onLogout} className="text-slate-500 hover:text-slate-800 p-2 rounded-full hover:bg-slate-100">
+                    <Icon name="LogOut" size={20} />
+                  </button>
+                </div>
+              </div>
+            </header>
+
+            <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+              <div className="mb-10 text-center">
+                <h2 className="text-3xl md:text-4xl font-extrabold text-blue-900 mb-4">Welcome back, {client.name.split(' ')[0]}!</h2>
+                <p className="text-lg text-slate-600 max-w-2xl mx-auto">Track your enrollment progress here. Your status is updated automatically when the administration processes a step.</p>
+              </div>
+
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8 mb-10">
+                <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                  <div className="flex-1 w-full">
+                    <div className="flex justify-between text-sm font-semibold mb-2">
+                      <span className="text-slate-600">Overall Progress</span>
+                      <span className="text-blue-700">{completedSet.size} of {globalSteps.length} Steps</span>
+                    </div>
+                    <div className="w-full h-4 bg-slate-100 rounded-full overflow-hidden shadow-inner">
+                      <div className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transition-all duration-1000 relative" style={{ width: `${globalSteps.length === 0 ? 0 : Math.round((completedSet.size / globalSteps.length) * 100)}%` }}>
+                        <div className="absolute top-0 right-0 bottom-0 left-0 bg-white/20 w-full animate-shimmer"></div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {nextStepIndex === globalSteps.length && globalSteps.length > 0 ? (
+                    <div className="shrink-0 bg-green-100 text-green-800 px-6 py-3 rounded-xl font-bold flex items-center border border-green-200">
+                      <Icon name="CheckCircle2" size={20} className="mr-2" /> Enrollment Complete!
+                    </div>
+                  ) : (
+                    <div className="shrink-0 text-center px-6 py-3 bg-blue-50 rounded-xl border border-blue-100 w-full md:w-auto">
+                      <div className="text-xs text-blue-600 font-bold uppercase tracking-wider mb-1">Status</div>
+                      <div className="font-semibold text-blue-900">In Progress</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8">
+                <h3 className="font-bold text-xl text-slate-800 mb-8 flex items-center">Your Action Plan</h3>
+                
+                <div className="relative">
+                  {globalSteps.length > 0 && <div className="absolute left-6 md:left-8 top-8 bottom-8 w-1 bg-slate-100 rounded-full z-0"></div>}
+                  
+                  <div className="space-y-8 relative z-10">
+                    {globalSteps.map((step, index) => {
+                      const isCompleted = completedSet.has(step.id);
+                      const isCurrent = index === nextStepIndex;
+
+                      return (
+                        <div key={step.id} className="flex relative">
+                          <div className="shrink-0 w-12 md:w-16 flex flex-col items-center">
+                            <div className={`w-12 h-12 rounded-full border-4 flex items-center justify-center transition-colors bg-white
+                              ${isCompleted ? 'border-green-500 text-green-500' : isCurrent ? 'border-blue-600 text-blue-600 shadow-lg shadow-blue-200' : 'border-slate-200 text-slate-300'}`}>
+                              {isCompleted ? <Icon name="CheckCircle2" size={24} /> : isCurrent ? <Icon name="Circle" size={16} /> : <span className="font-bold text-slate-400">{index + 1}</span>}
+                            </div>
+                          </div>
+
+                          <div className={`flex-1 ml-4 md:ml-6 p-5 rounded-2xl border transition-all ${
+                            isCompleted ? 'bg-slate-50 border-slate-200 opacity-75' : isCurrent ? 'bg-white border-blue-200 shadow-md ring-1 ring-blue-100' : 'bg-white border-slate-100 opacity-60'}`}>
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+                              <div>
+                                <div className={`text-xs font-bold uppercase tracking-wider mb-1 ${isCompleted ? 'text-green-600' : isCurrent ? 'text-blue-600' : 'text-slate-400'}`}>
+                                  {isCompleted ? 'Completed' : isCurrent ? 'Current Step' : 'Upcoming'}
+                                </div>
+                                <h4 className={`text-lg font-bold ${isCompleted ? 'text-slate-600 line-through' : isCurrent ? 'text-blue-900' : 'text-slate-500'}`}>{step.text}</h4>
+                              </div>
+                              {isCurrent && <div className="mt-2 md:mt-0 text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg inline-block self-start">Awaiting Admin</div>}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </main>
+          </div>
+        );
+      }
+
+      // Render the App
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      root.render(<AppWrapper />);
+    </script>
+  </body>
+</html>
