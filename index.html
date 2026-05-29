@@ -143,9 +143,21 @@
 
         const isConfigured = isPreviewEnvironment || firebaseConfig.apiKey !== "YOUR_API_KEY";
         const {
-          initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken,
+          getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken,
           getFirestore, collection, doc, setDoc, onSnapshot, addDoc, updateDoc, deleteDoc
         } = window.FirebaseAPI;
+
+        // Stable App Instance getter to prevent "Firebase App already exists" errors
+        const getFirebaseApp = () => {
+          if (!window._appInstance) {
+            try {
+              window._appInstance = window.FirebaseAPI.initializeApp(firebaseConfig);
+            } catch (e) {
+              // Ignore if already initialized
+            }
+          }
+          return window._appInstance;
+        };
 
         // --- 1. Firebase Authentication ---
         useEffect(() => {
@@ -154,7 +166,7 @@
             return;
           }
 
-          const app = initializeApp(firebaseConfig);
+          const app = getFirebaseApp();
           const auth = getAuth(app);
           
           const initAuth = async () => {
@@ -184,7 +196,7 @@
         useEffect(() => {
           if (!firebaseUser || !isConfigured) return;
 
-          const app = initializeApp(firebaseConfig);
+          const app = getFirebaseApp();
           const db = getFirestore(app);
 
           // Sync Global Settings
@@ -281,7 +293,7 @@
                 globalSteps={globalSteps}
                 certTemplate={certTemplate}
                 onLogout={handleLogout}
-                db={getFirestore(initializeApp(firebaseConfig))} 
+                db={getFirestore(getFirebaseApp())} 
               />
             )}
             {role === 'client' && (
@@ -438,7 +450,8 @@
             setNewClientName('');
             setNewClientUsername('');
           } catch (err) {
-            setError('Failed to add client. Ensure connection is active.');
+            console.error("Firestore Add Error:", err);
+            setError(`Failed to add client: ${err.message || 'Ensure connection is active.'}`);
           }
         };
 
@@ -585,7 +598,10 @@
 
         const handleSaveSteps = async (newStepsArray) => {
           try { await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'settings', 'global'), { steps: newStepsArray }); } 
-          catch (err) { console.error("Error saving steps", err); }
+          catch (err) { 
+            console.error("Error saving steps", err); 
+            alert(`Failed to save steps: ${err.message}`);
+          }
         };
 
         const handleAddStep = (e) => {
