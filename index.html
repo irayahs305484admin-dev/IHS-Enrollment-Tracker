@@ -589,10 +589,10 @@
               : (conf.letterheadText || '').replace(/\n/g, '<br/>');
 
             container = document.createElement('div');
-            container.style.position = 'fixed';
-            container.style.left = '0';
+            // FIX 1: Use absolute positioning instead of fixed to prevent mobile rendering engine clipping
+            container.style.position = 'absolute';
+            container.style.left = '-9999px';
             container.style.top = '0';
-            container.style.zIndex = '-9999';
             
             container.innerHTML = `
               <style>
@@ -650,28 +650,34 @@
               margin:       0,
               filename:     filename,
               image:        { type: 'jpeg', quality: 1 },
-              html2canvas:  { scale: 2, useCORS: true, logging: false },
+              html2canvas:  { 
+                  scale: 2, 
+                  useCORS: true, 
+                  logging: false,
+                  // FIX 2: Force a desktop-sized virtual window so Android doesn't squish the canvas
+                  windowWidth: 794 
+              },
               jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
 
-            await window.html2pdf().set(opt).from(container).toPdf().get('pdf').then((pdf) => {
-                if (action === 'print') {
+            if (action === 'download') {
+                // FIX 3: Use html2pdf's built-in save method which has robust mobile fallbacks
+                await window.html2pdf().set(opt).from(container).save();
+            } else if (action === 'print') {
+                await window.html2pdf().set(opt).from(container).toPdf().get('pdf').then((pdf) => {
                     pdf.autoPrint();
                     try {
-                        window.open(pdf.output('bloburl'), '_blank');
+                        const newWin = window.open(pdf.output('bloburl'), '_blank');
+                        // Fallback if Android blocks the popup window
+                        if (!newWin || newWin.closed || typeof newWin.closed === 'undefined') {
+                            alert("Your mobile browser blocked the print window. Downloading the certificate instead.");
+                            pdf.save(filename);
+                        }
                     } catch(e) {
-                        pdf.save(filename); // Fallback if block/sandbox prevents new tab
+                        pdf.save(filename); 
                     }
-                } else if (action === 'download') {
-                    const pdfDataUri = pdf.output('dataurlstring');
-                    const link = document.createElement('a');
-                    link.href = pdfDataUri;
-                    link.download = filename;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                }
-            });
+                });
+            }
             
             setIsGenerating(false);
             onClose();
