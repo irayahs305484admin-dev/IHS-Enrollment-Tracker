@@ -603,12 +603,14 @@
               : (conf.letterheadText || '').replace(/\n/g, '<br/>');
 
             container = document.createElement('div');
-            // FIX 2: Move completely off-screen but keep 100% opacity to guarantee mobile browsers render it fully
+            
+            // FIX 2: Place it exactly at the top of the document behind the modal overlay.
+            // Pushing it to -10000px causes html2canvas to render a completely blank white image on mobile devices!
             container.style.position = 'absolute';
-            container.style.top = '-10000px';
-            container.style.left = '-10000px';
+            container.style.top = '0';
+            container.style.left = '0';
             container.style.zIndex = '-9999';
-            container.style.opacity = '1';
+            // DO NOT use opacity or visibility modifiers here, or html2canvas will ignore the element completely.
             
             container.innerHTML = `
               <style>
@@ -665,7 +667,7 @@
             const opt = {
               margin:       0,
               filename:     filename,
-              image:        { type: 'jpeg', quality: 1 },
+              image:        { type: 'jpeg', quality: 0.98 },
               html2canvas:  { 
                   scale: 2, 
                   useCORS: true, 
@@ -674,6 +676,9 @@
               },
               jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
+
+            // FIX 3: Force a tiny delay so the browser can fully render/paint the hidden div before canvas tries to snap it
+            await new Promise(resolve => setTimeout(resolve, 250));
 
             const pdfWorker = window.html2pdf().set(opt).from(container);
 
@@ -697,7 +702,7 @@
                     await pdfWorker.save();
                 }
             } else if (action === 'download') {
-                // FIX 3: Use html2pdf's native save method which is highly optimized for cross-device/mobile compatibility
+                // FIX 4: Use html2pdf's native save method which is highly optimized for cross-device/mobile compatibility
                 await pdfWorker.save();
             } else if (action === 'print') {
                 await pdfWorker.toPdf().get('pdf').then((pdf) => {
