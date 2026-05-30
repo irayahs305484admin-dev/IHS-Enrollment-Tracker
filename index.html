@@ -124,10 +124,8 @@
           const size = e.target.value;
           if (!size) return;
           
-          // Apply a temporary legacy font size
           document.execCommand("fontSize", false, "7");
           
-          // Replace the legacy size with our precise inline numerical CSS size
           const fonts = editorRef.current.getElementsByTagName("font");
           for (let i = 0; i < fonts.length; i++) {
               if (fonts[i].size == "7") {
@@ -136,7 +134,6 @@
               }
           }
           
-          // Fallback for browsers that insert spans instead of fonts
           const spans = editorRef.current.getElementsByTagName("span");
           for (let i = 0; i < spans.length; i++) {
               if (spans[i].style.fontSize.includes("xxx-large") || spans[i].style.fontSize === "48px") {
@@ -146,7 +143,7 @@
           
           editorRef.current.focus();
           handleInput();
-          e.target.value = ""; // Reset selector
+          e.target.value = ""; 
         };
 
         return (
@@ -255,7 +252,7 @@
         const [authError, setAuthError] = useState('');
         
         // App State
-        const [role, setRole] = useState(null); // 'admin' | 'client' | null
+        const [role, setRole] = useState(null); 
         const [loggedInUsername, setLoggedInUsername] = useState('');
         const [globalSteps, setGlobalSteps] = useState([]);
         const [clients, setClients] = useState([]);
@@ -268,19 +265,15 @@
           getFirestore, collection, doc, setDoc, onSnapshot, addDoc, updateDoc, deleteDoc
         } = window.FirebaseAPI;
 
-        // Stable App Instance getter to prevent "Firebase App already exists" errors
         const getFirebaseApp = () => {
           if (!window._appInstance) {
             try {
               window._appInstance = window.FirebaseAPI.initializeApp(firebaseConfig);
-            } catch (e) {
-              // Ignore if already initialized
-            }
+            } catch (e) {}
           }
           return window._appInstance;
         };
 
-        // --- 1. Firebase Authentication ---
         useEffect(() => {
           if (!isConfigured) {
             setIsLoading(false);
@@ -313,14 +306,12 @@
           return () => unsubscribe();
         }, [isConfigured]);
 
-        // --- 2. Firestore Data Sync ---
         useEffect(() => {
           if (!firebaseUser || !isConfigured) return;
 
           const app = getFirebaseApp();
           const db = getFirestore(app);
 
-          // Sync Global Settings
           const settingsRef = collection(db, 'artifacts', APP_ID, 'public', 'data', 'settings');
           const unsubSettings = onSnapshot(settingsRef, (snapshot) => {
             let foundGlobal = false;
@@ -329,7 +320,7 @@
                 setGlobalSteps(docSnap.data().steps || []);
                 foundGlobal = true;
               } else if (docSnap.id === 'certificate') {
-                setCertTemplate(docSnap.data() || null); // Sync entire config object
+                setCertTemplate(docSnap.data() || null); 
               }
             });
             if (!foundGlobal) {
@@ -337,7 +328,6 @@
             }
           }, (err) => console.error("Settings Sync Error:", err));
 
-          // Sync Enrollments
           const enrollmentsRef = collection(db, 'artifacts', APP_ID, 'public', 'data', 'enrollments');
           const unsubEnrollments = onSnapshot(enrollmentsRef, (snapshot) => {
             const clientsData = [];
@@ -388,7 +378,6 @@
                 <p className="text-slate-600 mb-6">
                   Before the app can run, you must replace the <code>firebaseConfig</code> object in the Google Apps Script <code>Index.html</code> file with your actual project keys.
                 </p>
-                <p className="text-sm text-slate-500">Please refer to Step 3 of the Deployment Guide.</p>
               </div>
             </div>
           );
@@ -506,7 +495,6 @@
 
         return (
           <div className="min-h-screen flex flex-col md:flex-row h-screen">
-            {/* Mobile Horizontal Navigation & Desktop Sidebar */}
             <div className="w-full md:w-64 flex-shrink-0 bg-blue-900 text-white flex flex-col shadow-xl z-10 md:h-screen sticky top-0">
               <div className="p-4 md:p-6 border-b border-blue-800 flex items-center justify-between md:justify-start">
                 <div className="flex items-center">
@@ -560,11 +548,10 @@
         const [schoolLevel, setSchoolLevel] = useState('Junior High School');
         const [isGenerating, setIsGenerating] = useState(false);
 
-        // Fallback config if not customized by Admin yet
         const conf = {
           depedLogo: null,
           schoolLogo: null,
-          letterheadText: "Republic of the Philippines\nDepartment of Education\nRegion V - Bicol\nSchools Division of Camarines Sur\nIRAYA HIGH SCHOOL",
+          letterheadText: "Republic of the Philippines<br/>Department of Education<br/>Region V - Bicol<br/>Schools Division of Camarines Sur<br/>IRAYA HIGH SCHOOL",
           heading: "CERTIFICATE OF ENROLMENT",
           bodyContent: `<div style="text-indent: 40px; text-align: justify; margin-bottom: 15px;">This is to certify that {{STUDENT_NAME}} is officially enrolled as {{SCHOOL_LEVEL}} Grade {{GRADE}} with Learner Reference Number {{LRN}} in this institution this School Year {{SCHOOL_YEAR}}.</div><div style="text-indent: 40px; text-align: justify; margin-bottom: 15px;">This CERTIFICATION is issued upon the request of the aforementioned name for whatever legal purposes that may serve him/her under the law.</div><div style="text-indent: 40px; text-align: justify;">Given this {{DATE}} at Iraya High School, Iraya, Buhi, Camarines Sur.</div>`,
           signatoryName: "LALYN P. NEGRILLO",
@@ -577,7 +564,6 @@
           setIsGenerating(true);
           let container;
           try {
-            // Replace tags even inside HTML formatting
             const replacePlaceholders = (text) => {
               if (!text) return "";
               const d = new Date();
@@ -586,9 +572,10 @@
               const month = d.toLocaleString('default', { month: 'long' });
               const year = d.getFullYear();
               const dateString = `${day}${suffix} day of ${month} ${year}`;
+              const fallbackName = client?.name || 'Student Name';
 
               return text
-                .replace(/{{STUDENT_NAME}}/g, `<strong>${client.name.toUpperCase()}</strong>`)
+                .replace(/{{STUDENT_NAME}}/g, `<strong>${fallbackName.toUpperCase()}</strong>`)
                 .replace(/{{SCHOOL_LEVEL}}/g, schoolLevel)
                 .replace(/{{GRADE}}/g, grade || '______')
                 .replace(/{{LRN}}/g, lrn || '___________________')
@@ -597,129 +584,101 @@
             };
 
             const processedBody = replacePlaceholders(conf.bodyContent);
-            
-            // Handle both legacy plain text and new rich HTML for letterheads
             const processedLetterhead = (conf.letterheadText || '').includes('<') 
               ? conf.letterheadText 
               : (conf.letterheadText || '').replace(/\n/g, '<br/>');
 
-            // Create temporary container for HTML rendering engine
             container = document.createElement('div');
-            container.style.width = '210mm';
-            // Use exact fixed height to ensure content flows inside instead of expanding the canvas
-            container.style.height = '297mm'; 
-            container.style.padding = '25.4mm';
-            container.style.boxSizing = 'border-box'; // Ensure padding doesn't inflate outer dimensions
-            container.style.overflow = 'hidden'; // Ensure it acts exactly like a printed physical page
-            container.style.backgroundColor = '#ffffff';
-            container.style.fontFamily = '"Times New Roman", Times, serif';
-            container.style.color = '#000000';
-            container.style.position = 'absolute';
-            container.style.left = '-9999px';
+            container.style.position = 'fixed';
+            container.style.left = '0';
             container.style.top = '0';
+            container.style.zIndex = '-9999';
             
-            // Use standard flex layout strictly constrained to 100% of the bounded parent
             container.innerHTML = `
               <style>
                 @import url('https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&display=swap');
+                .pdf-wrapper { 
+                    width: 210mm; 
+                    min-height: 297mm; 
+                    padding: 25.4mm; 
+                    box-sizing: border-box; 
+                    background-color: #ffffff;
+                    font-family: 'Times New Roman', Times, serif; 
+                    color: #000000;
+                    position: relative;
+                }
+                .pdf-header { width: 100%; display: table; margin-bottom: 30px; }
+                .pdf-header-cell { display: table-cell; vertical-align: top; }
+                .pdf-logo { width: 85px; height: 85px; object-fit: contain; }
+                .pdf-letterhead { text-align: center; font-size: 13px; line-height: 1.3; font-family: Arial, sans-serif; padding: 0 10px; }
+                .pdf-heading { text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 40px; font-family: 'Arial Black', Arial, sans-serif; }
+                .pdf-body { line-height: 1.8; font-size: 16px; word-wrap: break-word; }
+                .pdf-signatory { margin-top: 80px; text-align: right; width: 100%; display: inline-block; }
+                .pdf-footer { position: absolute; bottom: 25.4mm; left: 25.4mm; font-size: 11px; font-style: italic; color: #555; }
               </style>
-              <div style="display: flex; flex-direction: column; height: 100%; position: relative;">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; flex-shrink: 0;">
-                  <div style="width: 85px; height: 85px;">
-                    ${conf.depedLogo ? `<img src="${conf.depedLogo}" style="width: 100%; height: 100%; object-fit: contain;"/>` : ''}
+              <div class="pdf-wrapper">
+                <div class="pdf-header">
+                  <div class="pdf-header-cell" style="width: 85px;">
+                    ${conf.depedLogo ? `<img src="${conf.depedLogo}" class="pdf-logo"/>` : ''}
                   </div>
-                  <div style="flex: 1; text-align: center; font-size: 13px; line-height: 1.3; font-family: Arial, sans-serif;">
+                  <div class="pdf-header-cell pdf-letterhead">
                     ${processedLetterhead}
                   </div>
-                  <div style="width: 85px; height: 85px;">
-                    ${conf.schoolLogo ? `<img src="${conf.schoolLogo}" style="width: 100%; height: 100%; object-fit: contain;"/>` : ''}
+                  <div class="pdf-header-cell" style="width: 85px; text-align: right;">
+                    ${conf.schoolLogo ? `<img src="${conf.schoolLogo}" class="pdf-logo"/>` : ''}
                   </div>
                 </div>
                 
-                <div style="text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 40px; font-family: 'Arial Black', Arial, sans-serif; flex-shrink: 0;">
-                  ${conf.heading}
+                <div class="pdf-heading">${conf.heading}</div>
+                
+                <div class="pdf-body">${processedBody}</div>
+                
+                <div class="pdf-signatory">
+                  <div style="font-weight: bold; font-size: 16px; margin-right: 20px;">${conf.signatoryName}</div>
+                  <div style="font-size: 14px; margin-right: 20px;">${conf.signatoryTitle}</div>
                 </div>
                 
-                <div style="line-height: 1.8; font-size: 16px; word-wrap: break-word;">
-                  ${processedBody}
-                </div>
-                
-                <div style="margin-top: 80px; text-align: right; margin-right: 20px; padding-bottom: 10px;">
-                  <div style="font-weight: bold; font-size: 16px;">${conf.signatoryName}</div>
-                  <div style="font-size: 14px;">${conf.signatoryTitle}</div>
-                </div>
-                
-                <div style="position: absolute; bottom: 0; left: 0; font-size: 11px; font-style: italic; color: #555;">
-                  ${conf.footer}
-                </div>
+                <div class="pdf-footer">${conf.footer}</div>
               </div>
             `;
 
             document.body.appendChild(container);
 
-            if (action === 'print') {
-              // Bypass popup blockers by injecting directly into a hidden print iframe
-              const printIframe = document.createElement('iframe');
-              printIframe.style.position = 'absolute';
-              printIframe.style.top = '-9999px';
-              document.body.appendChild(printIframe);
-              
-              const printDoc = printIframe.contentWindow.document;
-              printDoc.open();
-              printDoc.write(`
-                <html>
-                  <head>
-                    <title>Print Certificate</title>
-                    <style>
-                      @page { size: A4 portrait; margin: 0; }
-                      body { margin: 0; background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                      @import url('https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&display=swap');
-                    </style>
-                  </head>
-                  <body>
-                    <div style="width: 210mm; height: 297mm; padding: 25.4mm; box-sizing: border-box; font-family: 'Times New Roman', Times, serif; color: black; overflow: hidden; position: relative;">
-                      ${container.innerHTML}
-                    </div>
-                  </body>
-                </html>
-              `);
-              printDoc.close();
+            const fallbackName = client?.name || 'Student_Name';
+            const filename = `Certificate_${fallbackName.replace(/\s+/g, '_')}.pdf`;
+            const opt = {
+              margin:       0,
+              filename:     filename,
+              image:        { type: 'jpeg', quality: 1 },
+              html2canvas:  { scale: 2, useCORS: true, logging: false },
+              jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
 
-              // Wait briefly for fonts/images to load into the iframe, then trigger print
-              setTimeout(() => {
-                  printIframe.contentWindow.focus();
-                  printIframe.contentWindow.print();
-                  setTimeout(() => document.body.removeChild(printIframe), 2000);
-                  setIsGenerating(false);
-              }, 1000);
+            await window.html2pdf().set(opt).from(container).toPdf().get('pdf').then((pdf) => {
+                if (action === 'print') {
+                    pdf.autoPrint();
+                    try {
+                        window.open(pdf.output('bloburl'), '_blank');
+                    } catch(e) {
+                        pdf.save(filename); // Fallback if block/sandbox prevents new tab
+                    }
+                } else if (action === 'download') {
+                    const pdfDataUri = pdf.output('dataurlstring');
+                    const link = document.createElement('a');
+                    link.href = pdfDataUri;
+                    link.download = filename;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }
+            });
+            
+            setIsGenerating(false);
+            onClose();
 
-            } else if (action === 'download') {
-              const filename = `Certificate_${client.name.replace(/\s+/g, '_')}.pdf`;
-              const opt = {
-                margin:       0,
-                filename:     filename,
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true, logging: false },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-              };
-
-              // Bypass GAS Sandbox Blob Restrictions by outputting a Data URI String
-              await window.html2pdf().set(opt).from(container).toPdf().get('pdf').then((pdf) => {
-                  const pdfDataUri = pdf.output('dataurlstring');
-                  const link = document.createElement('a');
-                  link.href = pdfDataUri;
-                  link.download = filename;
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
-              });
-              
-              setIsGenerating(false);
-              onClose();
-            }
           } catch (err) {
             console.error("Document Generation Error", err);
-            alert("Error generating document: " + (err.message || "Please check console."));
+            alert("Error generating document. Check your console logs.");
             setIsGenerating(false);
           } finally {
             if (container && container.parentNode) {
@@ -810,7 +769,6 @@
             setNewClientName('');
             setNewClientUsername('');
           } catch (err) {
-            console.error("Firestore Add Error:", err);
             setError(`Failed to add client: ${err.message || 'Ensure connection is active.'}`);
           }
         };
@@ -989,13 +947,11 @@
           footer: "Not valid without School official seal"
         };
 
-        // Migration from old schema if needed
         let initialConfig = { ...defaultConfig, ...(certTemplate || {}) };
         if (certTemplate && certTemplate.paragraph1 && !certTemplate.bodyContent) {
            initialConfig.bodyContent = `<div style="text-indent: 40px; text-align: justify; margin-bottom: 15px;">${certTemplate.paragraph1}</div><div style="text-indent: 40px; text-align: justify; margin-bottom: 15px;">${certTemplate.paragraph2}</div><div style="text-indent: 40px; text-align: justify;">${certTemplate.paragraph3}</div>`;
         }
         
-        // Migrate old plain text letterheads to the new HTML format
         if (initialConfig.letterheadText && !initialConfig.letterheadText.includes('<')) {
            initialConfig.letterheadText = `<div style="text-align: center;">${initialConfig.letterheadText.replace(/\n/g, '<br/>')}</div>`;
         }
@@ -1009,7 +965,6 @@
           setConfig(prev => ({ ...prev, [key]: value }));
         };
 
-        // Utility to handle logo uploads (DepEd & School) as PNG to preserve transparency
         const handleLogoUpload = (e, key) => {
           const file = e.target.files[0];
           if (!file) return;
@@ -1050,13 +1005,10 @@
             });
             setMessage({ text: 'Certificate configuration saved successfully!', type: 'success' });
           } catch (err) {
-            console.error("Error saving template", err);
             setMessage({ text: 'Failed to save template. Please check connection.', type: 'error' });
           }
           setIsSaving(false);
         };
-
-        const previewFontClass = config.fontFamily === 'times' ? 'font-serif' : config.fontFamily === 'courier' ? 'font-mono' : 'font-sans';
 
         return (
           <div className="max-w-6xl mx-auto pb-10">
@@ -1077,10 +1029,8 @@
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
               
-              {/* Form Settings */}
               <div className="space-y-6 bg-white p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-sm h-fit">
                 
-                {/* --- Letterhead Setup --- */}
                 <h3 className="font-bold text-slate-800 text-lg border-b border-slate-100 pb-3 flex items-center">
                   <Icon name="Image" size={20} className="mr-2 text-blue-600" /> Letterhead Setup
                 </h3>
@@ -1118,7 +1068,6 @@
                   <input type="text" value={config.heading} onChange={e=>handleChange('heading', e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-lg font-bold text-center font-sans" />
                 </div>
 
-                {/* --- Content Editor --- */}
                 <h3 className="font-bold text-slate-800 text-lg border-b border-slate-100 pb-3 flex items-center mt-8">
                   <Icon name="BookOpen" size={20} className="mr-2 text-blue-600" /> Rich Text Body
                 </h3>
@@ -1160,7 +1109,6 @@
                 </div>
               </div>
 
-              {/* Live Preview Column */}
               <div className="space-y-6">
                 <div className="xl:sticky xl:top-6">
                   <h4 className="text-sm font-bold text-slate-600 uppercase tracking-wider mb-3 px-2 flex justify-between items-end">
@@ -1168,10 +1116,8 @@
                   </h4>
                   <div className="border border-slate-300 rounded-lg overflow-hidden bg-white relative shadow-md w-full max-w-[420px] mx-auto aspect-[1/1.414]">
                     
-                    {/* Fixed aspect ratio structural representation */}
                     <div className="absolute inset-0 flex flex-col p-4 sm:p-6 text-slate-800 font-serif box-border pointer-events-none pb-12 relative overflow-hidden">
                       
-                      {/* Interactive Letterhead Preview */}
                       <div className="flex justify-between items-start mb-4 w-full shrink-0">
                         <div className="w-[12%] aspect-square flex items-center justify-center">
                           {config.depedLogo && <img src={config.depedLogo} className="w-full h-full object-contain" />}
@@ -1293,22 +1239,20 @@
                         <div key={step.id} className="flex relative">
                           <div className="shrink-0 w-12 md:w-16 flex flex-col items-center">
                             <div className={`w-12 h-12 rounded-full border-4 flex items-center justify-center transition-colors bg-white
-                              ${isCompleted ? 'border-green-500 text-green-500' : isCurrent ? 'border-blue-600 text-blue-600 shadow-lg shadow-blue-200' : 'border-slate-200 text-slate-300'}`}>
-                              {isCompleted ? <Icon name="CheckCircle2" size={24} /> : isCurrent ? <Icon name="Circle" size={16} /> : <span className="font-bold text-slate-400">{index + 1}</span>}
+                              ${isCompleted ? 'border-green-500 text-green-500' : isCurrent ? 'border-blue-600 text-blue-600' : 'border-slate-300 text-slate-300'}`}>
+                              {isCompleted ? <Icon name="CheckCircle2" size={24} /> : <span className="font-bold">{index + 1}</span>}
                             </div>
+                            {index !== globalSteps.length - 1 && (
+                              <div className={`w-1 flex-1 my-2 rounded ${isCompleted ? 'bg-green-500' : 'bg-slate-200'}`}></div>
+                            )}
                           </div>
-
-                          <div className={`flex-1 ml-4 md:ml-6 p-4 sm:p-5 rounded-2xl border transition-all ${
-                            isCompleted ? 'bg-slate-50 border-slate-200 opacity-75' : isCurrent ? 'bg-white border-blue-200 shadow-md ring-1 ring-blue-100' : 'bg-white border-slate-100 opacity-60'}`}>
-                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
-                              <div>
-                                <div className={`text-xs font-bold uppercase tracking-wider mb-1 ${isCompleted ? 'text-green-600' : isCurrent ? 'text-blue-600' : 'text-slate-400'}`}>
-                                  {isCompleted ? 'Completed' : isCurrent ? 'Current Step' : 'Upcoming'}
-                                </div>
-                                <h4 className={`text-base sm:text-lg font-bold ${isCompleted ? 'text-slate-600 line-through' : isCurrent ? 'text-blue-900' : 'text-slate-500'}`}>{step.text}</h4>
-                              </div>
-                              {isCurrent && <div className="mt-2 md:mt-0 text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg inline-block self-start">Awaiting Admin</div>}
-                            </div>
+                          <div className="ml-4 md:ml-6 pb-8 pt-2">
+                            <h4 className={`text-lg font-bold ${isCompleted ? 'text-green-800' : isCurrent ? 'text-blue-900' : 'text-slate-600'}`}>
+                              {step.text}
+                            </h4>
+                            <p className="text-slate-500 mt-1 text-sm">
+                              {isCompleted ? 'Step completed' : isCurrent ? 'In progress' : 'Pending previous steps'}
+                            </p>
                           </div>
                         </div>
                       );
@@ -1321,7 +1265,7 @@
         );
       }
 
-      // Render the App
+      // Root Render Initialization
       const root = ReactDOM.createRoot(document.getElementById('root'));
       root.render(<AppWrapper />);
     </script>
