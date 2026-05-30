@@ -3,7 +3,14 @@
   <head>
     <base target="_top">
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <!-- Mobile Web App Meta Tags -->
+    <meta name="theme-color" content="#1e3a8a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+
     <title>IHS Enrollment Tracker</title>
     
     <!-- Google Fonts for Old English style -->
@@ -28,6 +35,9 @@
       @keyframes shimmer { 100% { transform: translateX(100%); } }
       .animate-shimmer { animation: shimmer 2s infinite; }
       body { -webkit-font-smoothing: antialiased; }
+      /* Hide scrollbar for mobile navigation */
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
   </head>
   <body class="bg-slate-100 font-sans text-slate-800 min-h-screen">
@@ -145,12 +155,12 @@
               <button onMouseDown={(e) => execCmd('bold', null, e)} className="px-2 py-1 hover:bg-slate-200 rounded font-bold border border-transparent hover:border-slate-300">B</button>
               <button onMouseDown={(e) => execCmd('italic', null, e)} className="px-2 py-1 hover:bg-slate-200 rounded italic border border-transparent hover:border-slate-300">I</button>
               <button onMouseDown={(e) => execCmd('underline', null, e)} className="px-2 py-1 hover:bg-slate-200 rounded underline border border-transparent hover:border-slate-300">U</button>
-              <div className="w-px h-5 bg-slate-300 mx-1"></div>
-              <select onChange={(e) => execCmd('fontName', e.target.value, e)} className="text-sm bg-white border border-slate-300 rounded px-2 py-1 outline-none">
+              <div className="w-px h-5 bg-slate-300 mx-1 hidden sm:block"></div>
+              <select onChange={(e) => execCmd('fontName', e.target.value, e)} className="text-sm bg-white border border-slate-300 rounded px-2 py-1 outline-none max-w-[120px] sm:max-w-full">
                 <option value="Times New Roman">Times New Roman</option>
                 <option value="Arial">Arial</option>
                 <option value="Arial Black">Arial Black</option>
-                <option value="UnifrakturMaguntia">Old English (Mfg. Consent)</option>
+                <option value="UnifrakturMaguntia">Old English</option>
                 <option value="Courier New">Courier New</option>
               </select>
               
@@ -172,16 +182,18 @@
                 <option value="72px">72</option>
               </select>
               
-              <div className="w-px h-5 bg-slate-300 mx-1"></div>
-              <button onMouseDown={(e) => execCmd('justifyLeft', null, e)} className="px-2 py-1 hover:bg-slate-200 rounded text-xs">Left</button>
-              <button onMouseDown={(e) => execCmd('justifyCenter', null, e)} className="px-2 py-1 hover:bg-slate-200 rounded text-xs">Center</button>
-              <button onMouseDown={(e) => execCmd('justifyFull', null, e)} className="px-2 py-1 hover:bg-slate-200 rounded text-xs">Justify</button>
+              <div className="w-px h-5 bg-slate-300 mx-1 hidden sm:block"></div>
+              <div className="flex gap-1">
+                <button onMouseDown={(e) => execCmd('justifyLeft', null, e)} className="px-2 py-1 hover:bg-slate-200 rounded text-xs">Left</button>
+                <button onMouseDown={(e) => execCmd('justifyCenter', null, e)} className="px-2 py-1 hover:bg-slate-200 rounded text-xs">Center</button>
+                <button onMouseDown={(e) => execCmd('justifyFull', null, e)} className="px-2 py-1 hover:bg-slate-200 rounded text-xs">Justify</button>
+              </div>
             </div>
             <div 
               ref={editorRef}
               contentEditable
               onBlur={handleInput}
-              className="p-4 min-h-[200px] outline-none font-serif text-[15px] leading-relaxed"
+              className="p-4 min-h-[200px] outline-none font-serif text-[15px] leading-relaxed overflow-x-auto max-w-full"
             ></div>
           </div>
         );
@@ -437,7 +449,7 @@
         };
 
         return (
-          <div className="min-h-screen flex items-center justify-center p-4">
+          <div className="min-h-screen flex items-start justify-center p-4 pt-12 md:pt-24">
             <div className="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden">
               <div className="bg-blue-900 p-8 text-center">
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-yellow-400 mb-4 shadow-lg">
@@ -493,32 +505,35 @@
         const [activeTab, setActiveTab] = useState('clients');
 
         return (
-          <div className="min-h-screen flex flex-col md:flex-row">
-            <div className="w-full md:w-64 bg-blue-900 text-white flex flex-col shadow-xl z-10">
-              <div className="p-6 border-b border-blue-800 flex items-center">
-                <Icon name="GraduationCap" size={28} className="text-yellow-400 mr-3" />
-                <div>
-                  <h2 className="font-bold text-lg">Admin Portal</h2>
-                  <p className="text-xs text-blue-300">IHS Enrollment</p>
+          <div className="min-h-screen flex flex-col md:flex-row h-screen">
+            {/* Mobile Horizontal Navigation & Desktop Sidebar */}
+            <div className="w-full md:w-64 flex-shrink-0 bg-blue-900 text-white flex flex-col shadow-xl z-10 md:h-screen sticky top-0">
+              <div className="p-4 md:p-6 border-b border-blue-800 flex items-center justify-between md:justify-start">
+                <div className="flex items-center">
+                  <Icon name="GraduationCap" size={28} className="text-yellow-400 mr-3 shrink-0" />
+                  <div>
+                    <h2 className="font-bold text-lg leading-tight">Admin Portal</h2>
+                    <p className="text-xs text-blue-300">IHS Enrollment</p>
+                  </div>
                 </div>
+                <button onClick={onLogout} className="md:hidden text-red-300 hover:text-red-100 p-2">
+                  <Icon name="LogOut" size={24} />
+                </button>
               </div>
               
-              <nav className="flex-1 p-4 space-y-2">
-                <button onClick={() => setActiveTab('clients')} className={`w-full flex items-center px-4 py-3 rounded-lg transition-colors ${activeTab === 'clients' ? 'bg-blue-800 text-white' : 'text-blue-200 hover:bg-blue-800/50'}`}>
-                  <Icon name="Users" size={20} className="mr-3" />
-                  Manage Students
+              <nav className="flex-row md:flex-col flex p-2 md:p-4 gap-2 overflow-x-auto no-scrollbar border-b border-blue-800 md:border-none">
+                <button onClick={() => setActiveTab('clients')} className={`whitespace-nowrap flex items-center px-4 py-2.5 md:py-3 rounded-lg transition-colors ${activeTab === 'clients' ? 'bg-blue-800 text-white' : 'text-blue-200 hover:bg-blue-800/50'}`}>
+                  <Icon name="Users" size={20} className="mr-2 md:mr-3" /> Manage Students
                 </button>
-                <button onClick={() => setActiveTab('steps')} className={`w-full flex items-center px-4 py-3 rounded-lg transition-colors ${activeTab === 'steps' ? 'bg-blue-800 text-white' : 'text-blue-200 hover:bg-blue-800/50'}`}>
-                  <Icon name="Settings" size={20} className="mr-3" />
-                  Enrollment Steps
+                <button onClick={() => setActiveTab('steps')} className={`whitespace-nowrap flex items-center px-4 py-2.5 md:py-3 rounded-lg transition-colors ${activeTab === 'steps' ? 'bg-blue-800 text-white' : 'text-blue-200 hover:bg-blue-800/50'}`}>
+                  <Icon name="Settings" size={20} className="mr-2 md:mr-3" /> Enrollment Steps
                 </button>
-                <button onClick={() => setActiveTab('certificate')} className={`w-full flex items-center px-4 py-3 rounded-lg transition-colors ${activeTab === 'certificate' ? 'bg-blue-800 text-white' : 'text-blue-200 hover:bg-blue-800/50'}`}>
-                  <Icon name="Award" size={20} className="mr-3" />
-                  Certificate Template
+                <button onClick={() => setActiveTab('certificate')} className={`whitespace-nowrap flex items-center px-4 py-2.5 md:py-3 rounded-lg transition-colors ${activeTab === 'certificate' ? 'bg-blue-800 text-white' : 'text-blue-200 hover:bg-blue-800/50'}`}>
+                  <Icon name="Award" size={20} className="mr-2 md:mr-3" /> Certificate Template
                 </button>
               </nav>
 
-              <div className="p-4 border-t border-blue-800">
+              <div className="hidden md:block p-4 border-t border-blue-800 mt-auto">
                 <button onClick={onLogout} className="w-full flex items-center px-4 py-3 text-red-300 hover:bg-red-900/30 rounded-lg transition-colors">
                   <Icon name="LogOut" size={20} className="mr-3" />
                   Logout
@@ -526,7 +541,7 @@
               </div>
             </div>
 
-            <div className="flex-1 overflow-auto bg-slate-50 p-6 md:p-10 relative">
+            <div className="flex-1 overflow-auto bg-slate-50 p-4 sm:p-6 md:p-10 relative">
               {activeTab === 'clients' && <AdminClients clients={clients} globalSteps={globalSteps} certTemplate={certTemplate} db={db} />}
               {activeTab === 'steps' && <AdminSteps globalSteps={globalSteps} db={db} />}
               {activeTab === 'certificate' && <AdminCertificate certTemplate={certTemplate} db={db} />}
@@ -716,9 +731,9 @@
         return (
           <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4 backdrop-blur-sm overflow-y-auto">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col my-8">
-              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+              <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
                 <h3 className="text-lg font-bold text-slate-800 flex items-center">
-                  <Icon name="Award" size={20} className="mr-2 text-blue-600" /> 
+                  <Icon name="Award" size={20} className="mr-2 text-blue-600 shrink-0" /> 
                   Generate Certificate
                 </h3>
                 <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-200 transition-colors">
@@ -726,8 +741,8 @@
                 </button>
               </div>
               
-              <div className="p-6 space-y-5">
-                <div className="bg-blue-50 text-blue-800 text-sm p-3 rounded-lg border border-blue-100 mb-2">
+              <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
+                <div className="bg-blue-50 text-blue-800 text-xs sm:text-sm p-3 rounded-lg border border-blue-100 mb-2">
                   Preparing document for <strong className="font-bold">{client.name}</strong>. Fill in the specific details below to insert them into the template.
                 </div>
 
@@ -755,14 +770,14 @@
                 </div>
               </div>
 
-              <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
-                <button onClick={onClose} disabled={isGenerating} className="px-4 py-2 text-slate-600 font-medium hover:bg-slate-200 rounded-lg transition-colors">
+              <div className="px-4 py-3 sm:px-6 sm:py-4 border-t border-slate-100 bg-slate-50 flex flex-wrap sm:flex-nowrap justify-end gap-2 sm:gap-3">
+                <button onClick={onClose} disabled={isGenerating} className="w-full sm:w-auto px-4 py-2 text-slate-600 font-medium hover:bg-slate-200 rounded-lg transition-colors order-3 sm:order-1">
                   Cancel
                 </button>
-                <button onClick={() => executeGeneration('print')} disabled={isGenerating} className="px-4 py-2 bg-slate-800 text-white font-medium hover:bg-slate-900 rounded-lg transition-colors flex items-center shadow-sm disabled:opacity-50">
+                <button onClick={() => executeGeneration('print')} disabled={isGenerating} className="w-full sm:w-auto px-4 py-2 bg-slate-800 text-white font-medium hover:bg-slate-900 rounded-lg transition-colors flex justify-center items-center shadow-sm disabled:opacity-50 order-1 sm:order-2">
                   <Icon name="Printer" size={18} className="mr-2" /> {isGenerating ? 'Processing...' : 'Print'}
                 </button>
-                <button onClick={() => executeGeneration('download')} disabled={isGenerating} className="px-4 py-2 bg-blue-600 text-white font-medium hover:bg-blue-700 rounded-lg transition-colors flex items-center shadow-sm disabled:opacity-50">
+                <button onClick={() => executeGeneration('download')} disabled={isGenerating} className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white font-medium hover:bg-blue-700 rounded-lg transition-colors flex justify-center items-center shadow-sm disabled:opacity-50 order-2 sm:order-3">
                   <Icon name="Download" size={18} className="mr-2" /> {isGenerating ? 'Processing...' : 'Download PDF'}
                 </button>
               </div>
@@ -833,13 +848,13 @@
               <p className="text-slate-500">Manage client enrollments and track their specific progress.</p>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-8">
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6 mb-8">
               <h3 className="font-semibold text-lg text-slate-800 mb-4 flex items-center">
                 <Icon name="Plus" size={20} className="mr-2 text-blue-600" /> Enroll New Student
               </h3>
               {error && <div className="mb-4 text-sm text-red-600 bg-red-50 p-3 rounded-lg">{error}</div>}
               
-              <form onSubmit={handleAddClient} className="flex flex-col md:flex-row gap-4">
+              <form onSubmit={handleAddClient} className="flex flex-col md:flex-row gap-3 sm:gap-4">
                 <input type="text" placeholder="Full Name" value={newClientName} onChange={(e) => setNewClientName(e.target.value)} className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
                 <input type="text" placeholder="Login Username" value={newClientUsername} onChange={(e) => setNewClientUsername(e.target.value)} className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
                 <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors whitespace-nowrap">Create Record</button>
@@ -857,29 +872,31 @@
 
                   return (
                     <div key={client.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                      <div className="p-5 flex flex-col md:flex-row md:items-center justify-between cursor-pointer hover:bg-slate-50" onClick={() => setExpandedClient(isExpanded ? null : client.id)}>
-                        <div className="flex-1 mb-4 md:mb-0">
+                      <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between cursor-pointer hover:bg-slate-50" onClick={() => setExpandedClient(isExpanded ? null : client.id)}>
+                        <div className="flex-1 mb-4 sm:mb-0">
                           <h4 className="font-bold text-lg text-slate-800">{client.name}</h4>
                           <p className="text-sm text-slate-500">Username: <span className="font-mono bg-slate-100 px-1 py-0.5 rounded text-slate-700">{client.username}</span></p>
                         </div>
-                        <div className="flex items-center gap-6">
-                          <div className="text-right">
+                        <div className="flex items-center gap-4 sm:gap-6 w-full sm:w-auto justify-between sm:justify-end">
+                          <div className="text-left sm:text-right flex-1 sm:flex-none">
                             <div className="text-sm font-medium text-slate-600 mb-1">{progress}% Complete</div>
-                            <div className="w-32 h-2 bg-slate-200 rounded-full overflow-hidden">
+                            <div className="w-full sm:w-32 h-2 bg-slate-200 rounded-full overflow-hidden">
                               <div className="h-full bg-green-500 transition-all duration-500" style={{ width: `${progress}%` }} />
                             </div>
                           </div>
-                          <button onClick={(e) => { e.stopPropagation(); setCertModalClient(client); }} className="text-blue-600 hover:text-blue-800 p-2 rounded-full hover:bg-blue-50 transition-colors" title="Generate Certificate">
-                            <Icon name="Award" size={24} />
-                          </button>
-                          <button onClick={(e) => handleDeleteClient(client.id, e)} className="text-slate-400 hover:text-red-500 p-2 rounded-full hover:bg-red-50 transition-colors" title="Delete Client">
-                            <Icon name="Trash2" size={18} />
-                          </button>
+                          <div className="flex items-center gap-1 sm:gap-2">
+                            <button onClick={(e) => { e.stopPropagation(); setCertModalClient(client); }} className="text-blue-600 hover:text-blue-800 p-2 rounded-full hover:bg-blue-50 transition-colors" title="Generate Certificate">
+                              <Icon name="Award" size={24} />
+                            </button>
+                            <button onClick={(e) => handleDeleteClient(client.id, e)} className="text-slate-400 hover:text-red-500 p-2 rounded-full hover:bg-red-50 transition-colors" title="Delete Client">
+                              <Icon name="Trash2" size={18} />
+                            </button>
+                          </div>
                         </div>
                       </div>
 
                       {isExpanded && (
-                        <div className="border-t border-slate-100 bg-slate-50 p-5">
+                        <div className="border-t border-slate-100 bg-slate-50 p-4 sm:p-5">
                           <h5 className="text-sm font-semibold text-slate-600 mb-4 uppercase tracking-wider">Enrollment Checklist</h5>
                           <div className="space-y-2">
                             {globalSteps.map((step) => {
@@ -887,7 +904,7 @@
                               return (
                                 <div key={step.id} onClick={() => toggleStepForClient(client.id, step.id, client.completedSteps || [])}
                                   className={`flex items-center p-3 rounded-lg cursor-pointer transition-colors border ${isDone ? 'bg-green-50 border-green-200' : 'bg-white border-slate-200 hover:border-blue-300'}`}>
-                                  <div className="mr-4 text-slate-300">
+                                  <div className="mr-4 text-slate-300 shrink-0">
                                     {isDone ? <Icon name="CheckCircle2" size={24} className="text-green-600" /> : <Icon name="Circle" size={24} />}
                                   </div>
                                   <span className={`font-medium ${isDone ? 'text-green-800 line-through opacity-70' : 'text-slate-700'}`}>{step.text}</span>
@@ -931,15 +948,15 @@
             </div>
             
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <ul className="space-y-3">
                   {globalSteps.map((step, index) => (
-                    <li key={step.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-100 group">
+                    <li key={step.id} className="flex items-center justify-between p-3 sm:p-4 bg-slate-50 rounded-lg border border-slate-100 group">
                       <div className="flex items-center">
-                        <span className="w-8 h-8 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-sm mr-4 shrink-0">{index + 1}</span>
+                        <span className="w-8 h-8 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-sm mr-3 sm:mr-4 shrink-0">{index + 1}</span>
                         <span className="font-medium text-slate-700">{step.text}</span>
                       </div>
-                      <button onClick={() => handleSaveSteps(globalSteps.filter(s => s.id !== step.id))} className="text-slate-400 hover:text-red-500 p-2 opacity-0 group-hover:opacity-100 transition-all">
+                      <button onClick={() => handleSaveSteps(globalSteps.filter(s => s.id !== step.id))} className="text-slate-400 hover:text-red-500 p-2 sm:opacity-0 group-hover:opacity-100 transition-all">
                         <Icon name="Trash2" size={18} />
                       </button>
                     </li>
@@ -947,10 +964,10 @@
                 </ul>
               </div>
 
-              <div className="bg-slate-50 border-t border-slate-200 p-6">
-                <form onSubmit={handleAddStep} className="flex items-center">
-                  <input type="text" value={newStepText} onChange={(e) => setNewStepText(e.target.value)} placeholder="e.g., Submit Birth Certificate" className="flex-1 px-4 py-3 border border-slate-300 rounded-l-lg outline-none" />
-                  <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-r-lg flex items-center">
+              <div className="bg-slate-50 border-t border-slate-200 p-4 sm:p-6">
+                <form onSubmit={handleAddStep} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-0">
+                  <input type="text" value={newStepText} onChange={(e) => setNewStepText(e.target.value)} placeholder="e.g., Submit Birth Certificate" className="flex-1 px-4 py-3 border border-slate-300 rounded-lg sm:rounded-r-none sm:rounded-l-lg outline-none" />
+                  <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg sm:rounded-l-none sm:rounded-r-lg flex items-center justify-center">
                     <Icon name="Plus" size={18} className="mr-2" /> Add Step
                   </button>
                 </form>
@@ -1042,7 +1059,7 @@
         const previewFontClass = config.fontFamily === 'times' ? 'font-serif' : config.fontFamily === 'courier' ? 'font-mono' : 'font-sans';
 
         return (
-          <div className="max-w-6xl mx-auto">
+          <div className="max-w-6xl mx-auto pb-10">
             <div className="mb-8">
               <h2 className="text-2xl font-bold text-slate-800 mb-2">Certificate Builder</h2>
               <p className="text-slate-500">Fully customize the A4 certificate layout, letterhead, and text that will be generated for clients.</p>
@@ -1061,14 +1078,14 @@
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
               
               {/* Form Settings */}
-              <div className="space-y-6 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm h-fit">
+              <div className="space-y-6 bg-white p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-sm h-fit">
                 
                 {/* --- Letterhead Setup --- */}
                 <h3 className="font-bold text-slate-800 text-lg border-b border-slate-100 pb-3 flex items-center">
                   <Icon name="Image" size={20} className="mr-2 text-blue-600" /> Letterhead Setup
                 </h3>
                 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 flex justify-between">
                       Left Logo (DepEd)
@@ -1091,7 +1108,7 @@
                   </div>
                 </div>
 
-                <div className="mt-6">
+                <div className="mt-6 w-full">
                   <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Letterhead Text</label>
                   <RichTextEditor value={config.letterheadText} onChange={(val) => handleChange('letterheadText', val)} />
                 </div>
@@ -1115,7 +1132,7 @@
                   </div>
                 </div>
 
-                <div>
+                <div className="w-full">
                   <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 mt-2">Certificate Paragraphs</label>
                   <RichTextEditor value={config.bodyContent} onChange={(val) => handleChange('bodyContent', val)} />
                 </div>
@@ -1123,11 +1140,11 @@
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
                   <div>
                     <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Signatory Name</label>
-                    <input type="text" value={config.signatoryName} onChange={e=>handleChange('signatoryName', e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-right" />
+                    <input type="text" value={config.signatoryName} onChange={e=>handleChange('signatoryName', e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-left sm:text-right" />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Signatory Title</label>
-                    <input type="text" value={config.signatoryTitle} onChange={e=>handleChange('signatoryTitle', e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm text-right" />
+                    <input type="text" value={config.signatoryTitle} onChange={e=>handleChange('signatoryTitle', e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm text-left sm:text-right" />
                   </div>
                 </div>
                 
@@ -1137,7 +1154,7 @@
                 </div>
 
                 <div className="pt-4 border-t border-slate-100 flex justify-end">
-                  <button onClick={saveTemplate} disabled={isSaving} className={`flex items-center px-6 py-3 rounded-xl text-white font-medium transition-all ${isSaving ? 'bg-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg'}`}>
+                  <button onClick={saveTemplate} disabled={isSaving} className={`w-full sm:w-auto flex justify-center items-center px-6 py-3 rounded-xl text-white font-medium transition-all ${isSaving ? 'bg-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg'}`}>
                     {isSaving ? 'Saving to Database...' : 'Save Configuration'}
                   </button>
                 </div>
@@ -1145,14 +1162,14 @@
 
               {/* Live Preview Column */}
               <div className="space-y-6">
-                <div className="sticky top-6">
+                <div className="xl:sticky xl:top-6">
                   <h4 className="text-sm font-bold text-slate-600 uppercase tracking-wider mb-3 px-2 flex justify-between items-end">
                     Approximate A4 Visual Layout
                   </h4>
-                  <div className="border border-slate-300 rounded-lg overflow-hidden bg-white relative shadow-md max-w-[420px] mx-auto aspect-[1/1.414]">
+                  <div className="border border-slate-300 rounded-lg overflow-hidden bg-white relative shadow-md w-full max-w-[420px] mx-auto aspect-[1/1.414]">
                     
                     {/* Fixed aspect ratio structural representation */}
-                    <div className="absolute inset-0 flex flex-col p-6 text-slate-800 font-serif box-border pointer-events-none pb-12 relative">
+                    <div className="absolute inset-0 flex flex-col p-4 sm:p-6 text-slate-800 font-serif box-border pointer-events-none pb-12 relative overflow-hidden">
                       
                       {/* Interactive Letterhead Preview */}
                       <div className="flex justify-between items-start mb-4 w-full shrink-0">
@@ -1161,7 +1178,7 @@
                         </div>
                         
                         <div 
-                          className="flex-1 flex flex-col font-sans px-2 text-[10px]" 
+                          className="flex-1 flex flex-col font-sans px-2 text-[8px] sm:text-[10px]" 
                           style={{lineHeight: '1.2'}}
                           dangerouslySetInnerHTML={{ __html: config.letterheadText }} 
                         />
@@ -1171,20 +1188,19 @@
                         </div>
                       </div>
 
-                      <div className="font-bold text-center mb-4 font-sans shrink-0" style={{ fontSize: '16px' }}>{config.heading}</div>
+                      <div className="font-bold text-center mb-4 font-sans shrink-0 text-sm sm:text-base">{config.heading}</div>
                       
                       <div 
-                        className="leading-relaxed mb-4 word-wrap" 
-                        style={{ fontSize: '11px' }}
+                        className="leading-relaxed mb-4 word-wrap text-[9px] sm:text-[11px]" 
                         dangerouslySetInnerHTML={{ __html: config.bodyContent.replace(/{{.*?}}/g, '_______') }}
                       />
                       
-                      <div className="mt-8 self-end text-right pb-4 mr-4">
-                        <div className="font-bold text-[11px]">{config.signatoryName}</div>
-                        <div className="text-[9px]">{config.signatoryTitle}</div>
+                      <div className="mt-8 self-end text-right pb-4 mr-2 sm:mr-4">
+                        <div className="font-bold text-[9px] sm:text-[11px]">{config.signatoryName}</div>
+                        <div className="text-[7px] sm:text-[9px]">{config.signatoryTitle}</div>
                       </div>
 
-                      <div className="absolute bottom-6 left-6 italic text-slate-500 text-[8px]">
+                      <div className="absolute bottom-4 sm:bottom-6 left-4 sm:left-6 italic text-slate-500 text-[6px] sm:text-[8px]">
                         {config.footer}
                       </div>
                     </div>
@@ -1215,9 +1231,9 @@
                   <div className="bg-blue-900 p-1.5 rounded-lg mr-3 shadow-sm">
                     <Icon name="GraduationCap" size={22} className="text-yellow-400" />
                   </div>
-                  <h1 className="font-bold text-xl text-slate-800 tracking-tight">IHS Tracker</h1>
+                  <h1 className="font-bold text-xl text-slate-800 tracking-tight truncate">IHS Tracker</h1>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 sm:gap-4">
                   <div className="hidden sm:block text-right">
                     <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Student</div>
                     <div className="text-sm font-bold text-slate-800">{client.name}</div>
@@ -1232,7 +1248,7 @@
             <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
               <div className="mb-10 text-center">
                 <h2 className="text-3xl md:text-4xl font-extrabold text-blue-900 mb-4">Welcome back, {client.name.split(' ')[0]}!</h2>
-                <p className="text-lg text-slate-600 max-w-2xl mx-auto">Track your enrollment progress here. Your status is updated automatically when the administration processes a step.</p>
+                <p className="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto">Track your enrollment progress here. Your status is updated automatically when the administration processes a step.</p>
               </div>
 
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8 mb-10">
@@ -1250,8 +1266,8 @@
                   </div>
                   
                   {nextStepIndex === globalSteps.length && globalSteps.length > 0 ? (
-                    <div className="shrink-0 bg-green-100 text-green-800 px-6 py-3 rounded-xl font-bold flex items-center border border-green-200">
-                      <Icon name="CheckCircle2" size={20} className="mr-2" /> Enrollment Complete!
+                    <div className="shrink-0 bg-green-100 text-green-800 px-6 py-3 rounded-xl font-bold flex items-center border border-green-200 w-full sm:w-auto justify-center">
+                      <Icon name="CheckCircle2" size={20} className="mr-2" /> Complete!
                     </div>
                   ) : (
                     <div className="shrink-0 text-center px-6 py-3 bg-blue-50 rounded-xl border border-blue-100 w-full md:w-auto">
@@ -1282,14 +1298,14 @@
                             </div>
                           </div>
 
-                          <div className={`flex-1 ml-4 md:ml-6 p-5 rounded-2xl border transition-all ${
+                          <div className={`flex-1 ml-4 md:ml-6 p-4 sm:p-5 rounded-2xl border transition-all ${
                             isCompleted ? 'bg-slate-50 border-slate-200 opacity-75' : isCurrent ? 'bg-white border-blue-200 shadow-md ring-1 ring-blue-100' : 'bg-white border-slate-100 opacity-60'}`}>
                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
                               <div>
                                 <div className={`text-xs font-bold uppercase tracking-wider mb-1 ${isCompleted ? 'text-green-600' : isCurrent ? 'text-blue-600' : 'text-slate-400'}`}>
                                   {isCompleted ? 'Completed' : isCurrent ? 'Current Step' : 'Upcoming'}
                                 </div>
-                                <h4 className={`text-lg font-bold ${isCompleted ? 'text-slate-600 line-through' : isCurrent ? 'text-blue-900' : 'text-slate-500'}`}>{step.text}</h4>
+                                <h4 className={`text-base sm:text-lg font-bold ${isCompleted ? 'text-slate-600 line-through' : isCurrent ? 'text-blue-900' : 'text-slate-500'}`}>{step.text}</h4>
                               </div>
                               {isCurrent && <div className="mt-2 md:mt-0 text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg inline-block self-start">Awaiting Admin</div>}
                             </div>
