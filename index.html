@@ -6,6 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IHS Enrollment Tracker</title>
     
+    <!-- Google Fonts for Old English style -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&display=swap" rel="stylesheet">
+    
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -16,8 +21,8 @@
     <!-- Babel (Compiles JSX in the browser) -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    <!-- jsPDF for PDF generation -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- html2pdf for Advanced Rich Text PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
     <style>
       @keyframes shimmer { 100% { transform: translateX(100%); } }
@@ -68,13 +73,117 @@
           AlertCircle: <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zM12 8v4M12 16h.01" />,
           Award: <g><path d="M12 15c2.761 0 5-2.239 5-5s-2.239-5-5-5-5 2.239-5 5 2.239 5 5 5z"/><path d="M8.21 13.89L7 23l5-3 5 3-1.21-9.11" /></g>,
           Download: <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />,
-          Upload: <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+          Upload: <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />,
+          X: <path d="M18 6L6 18M6 6l12 12" />,
+          Printer: <path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z" />,
+          Image: <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M21 8.5V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3.5M10.5 8.5a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM21 15l-5-5L5 21" />
         };
         return (
           <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
             {title && <title>{title}</title>}
             {icons[name]}
           </svg>
+        );
+      };
+
+      // ==========================================
+      // RICH TEXT EDITOR COMPONENT
+      // ==========================================
+      const RichTextEditor = ({ value, onChange }) => {
+        const editorRef = React.useRef(null);
+
+        useEffect(() => {
+          if (editorRef.current && editorRef.current.innerHTML !== value) {
+            editorRef.current.innerHTML = value || '';
+          }
+        }, []);
+
+        const handleInput = () => {
+          onChange(editorRef.current.innerHTML);
+        };
+
+        const execCmd = (cmd, arg = null, e) => {
+          e.preventDefault();
+          document.execCommand(cmd, false, arg);
+          editorRef.current.focus();
+          handleInput();
+        };
+
+        const applyCustomFontSize = (e) => {
+          e.preventDefault();
+          const size = e.target.value;
+          if (!size) return;
+          
+          // Apply a temporary legacy font size
+          document.execCommand("fontSize", false, "7");
+          
+          // Replace the legacy size with our precise inline numerical CSS size
+          const fonts = editorRef.current.getElementsByTagName("font");
+          for (let i = 0; i < fonts.length; i++) {
+              if (fonts[i].size == "7") {
+                  fonts[i].removeAttribute("size");
+                  fonts[i].style.fontSize = size;
+              }
+          }
+          
+          // Fallback for browsers that insert spans instead of fonts
+          const spans = editorRef.current.getElementsByTagName("span");
+          for (let i = 0; i < spans.length; i++) {
+              if (spans[i].style.fontSize.includes("xxx-large") || spans[i].style.fontSize === "48px") {
+                  spans[i].style.fontSize = size;
+              }
+          }
+          
+          editorRef.current.focus();
+          handleInput();
+          e.target.value = ""; // Reset selector
+        };
+
+        return (
+          <div className="border border-slate-300 rounded-lg overflow-hidden flex flex-col bg-white">
+            <div className="bg-slate-100 p-2 flex flex-wrap gap-2 border-b border-slate-300 items-center">
+              <button onMouseDown={(e) => execCmd('bold', null, e)} className="px-2 py-1 hover:bg-slate-200 rounded font-bold border border-transparent hover:border-slate-300">B</button>
+              <button onMouseDown={(e) => execCmd('italic', null, e)} className="px-2 py-1 hover:bg-slate-200 rounded italic border border-transparent hover:border-slate-300">I</button>
+              <button onMouseDown={(e) => execCmd('underline', null, e)} className="px-2 py-1 hover:bg-slate-200 rounded underline border border-transparent hover:border-slate-300">U</button>
+              <div className="w-px h-5 bg-slate-300 mx-1"></div>
+              <select onChange={(e) => execCmd('fontName', e.target.value, e)} className="text-sm bg-white border border-slate-300 rounded px-2 py-1 outline-none">
+                <option value="Times New Roman">Times New Roman</option>
+                <option value="Arial">Arial</option>
+                <option value="Arial Black">Arial Black</option>
+                <option value="UnifrakturMaguntia">Old English (Mfg. Consent)</option>
+                <option value="Courier New">Courier New</option>
+              </select>
+              
+              <select onChange={applyCustomFontSize} className="text-sm bg-white border border-slate-300 rounded px-2 py-1 outline-none" title="Numerical Font Size">
+                <option value="">Size...</option>
+                <option value="8px">8</option>
+                <option value="10px">10</option>
+                <option value="11px">11</option>
+                <option value="12px">12</option>
+                <option value="14px">14</option>
+                <option value="16px">16</option>
+                <option value="18px">18</option>
+                <option value="20px">20</option>
+                <option value="24px">24</option>
+                <option value="28px">28</option>
+                <option value="32px">32</option>
+                <option value="36px">36</option>
+                <option value="48px">48</option>
+                <option value="72px">72</option>
+              </select>
+              
+              <div className="w-px h-5 bg-slate-300 mx-1"></div>
+              <button onMouseDown={(e) => execCmd('justifyLeft', null, e)} className="px-2 py-1 hover:bg-slate-200 rounded text-xs">Left</button>
+              <button onMouseDown={(e) => execCmd('justifyCenter', null, e)} className="px-2 py-1 hover:bg-slate-200 rounded text-xs">Center</button>
+              <button onMouseDown={(e) => execCmd('justifyFull', null, e)} className="px-2 py-1 hover:bg-slate-200 rounded text-xs">Justify</button>
+            </div>
+            <div 
+              ref={editorRef}
+              contentEditable
+              onBlur={handleInput}
+              className="p-4 min-h-[200px] outline-none font-serif text-[15px] leading-relaxed"
+            ></div>
+          </div>
         );
       };
 
@@ -208,7 +317,7 @@
                 setGlobalSteps(docSnap.data().steps || []);
                 foundGlobal = true;
               } else if (docSnap.id === 'certificate') {
-                setCertTemplate(docSnap.data().templateData || null);
+                setCertTemplate(docSnap.data() || null); // Sync entire config object
               }
             });
             if (!foundGlobal) {
@@ -417,10 +526,240 @@
               </div>
             </div>
 
-            <div className="flex-1 overflow-auto bg-slate-50 p-6 md:p-10">
+            <div className="flex-1 overflow-auto bg-slate-50 p-6 md:p-10 relative">
               {activeTab === 'clients' && <AdminClients clients={clients} globalSteps={globalSteps} certTemplate={certTemplate} db={db} />}
               {activeTab === 'steps' && <AdminSteps globalSteps={globalSteps} db={db} />}
               {activeTab === 'certificate' && <AdminCertificate certTemplate={certTemplate} db={db} />}
+            </div>
+          </div>
+        );
+      }
+
+      // ==========================================
+      // CERTIFICATE MODAL COMPONENT (PDF GEN)
+      // ==========================================
+      function CertificateModal({ client, certTemplate, onClose }) {
+        const [grade, setGrade] = useState('');
+        const [lrn, setLrn] = useState('');
+        const [schoolYear, setSchoolYear] = useState('2026-2027');
+        const [schoolLevel, setSchoolLevel] = useState('Junior High School');
+        const [isGenerating, setIsGenerating] = useState(false);
+
+        // Fallback config if not customized by Admin yet
+        const conf = {
+          depedLogo: null,
+          schoolLogo: null,
+          letterheadText: "Republic of the Philippines\nDepartment of Education\nRegion V - Bicol\nSchools Division of Camarines Sur\nIRAYA HIGH SCHOOL",
+          heading: "CERTIFICATE OF ENROLMENT",
+          bodyContent: `<div style="text-indent: 40px; text-align: justify; margin-bottom: 15px;">This is to certify that {{STUDENT_NAME}} is officially enrolled as {{SCHOOL_LEVEL}} Grade {{GRADE}} with Learner Reference Number {{LRN}} in this institution this School Year {{SCHOOL_YEAR}}.</div><div style="text-indent: 40px; text-align: justify; margin-bottom: 15px;">This CERTIFICATION is issued upon the request of the aforementioned name for whatever legal purposes that may serve him/her under the law.</div><div style="text-indent: 40px; text-align: justify;">Given this {{DATE}} at Iraya High School, Iraya, Buhi, Camarines Sur.</div>`,
+          signatoryName: "LALYN P. NEGRILLO",
+          signatoryTitle: "Officer-In-charge",
+          footer: "Not valid without School official seal",
+          ...(certTemplate || {})
+        };
+
+        const executeGeneration = async (action) => {
+          setIsGenerating(true);
+          let container;
+          try {
+            // Replace tags even inside HTML formatting
+            const replacePlaceholders = (text) => {
+              if (!text) return "";
+              const d = new Date();
+              const day = d.getDate();
+              const suffix = (day % 10 === 1 && day !== 11) ? 'st' : (day % 10 === 2 && day !== 12) ? 'nd' : (day % 10 === 3 && day !== 13) ? 'rd' : 'th';
+              const month = d.toLocaleString('default', { month: 'long' });
+              const year = d.getFullYear();
+              const dateString = `${day}${suffix} day of ${month} ${year}`;
+
+              return text
+                .replace(/{{STUDENT_NAME}}/g, `<strong>${client.name.toUpperCase()}</strong>`)
+                .replace(/{{SCHOOL_LEVEL}}/g, schoolLevel)
+                .replace(/{{GRADE}}/g, grade || '______')
+                .replace(/{{LRN}}/g, lrn || '___________________')
+                .replace(/{{SCHOOL_YEAR}}/g, schoolYear)
+                .replace(/{{DATE}}/g, dateString);
+            };
+
+            const processedBody = replacePlaceholders(conf.bodyContent);
+            
+            // Handle both legacy plain text and new rich HTML for letterheads
+            const processedLetterhead = (conf.letterheadText || '').includes('<') 
+              ? conf.letterheadText 
+              : (conf.letterheadText || '').replace(/\n/g, '<br/>');
+
+            // Create temporary container for HTML rendering engine
+            container = document.createElement('div');
+            container.style.width = '210mm';
+            container.style.minHeight = '297mm';
+            container.style.padding = '25.4mm';
+            container.style.backgroundColor = '#ffffff';
+            container.style.fontFamily = '"Times New Roman", Times, serif';
+            container.style.color = '#000000';
+            container.style.position = 'absolute';
+            container.style.left = '-9999px';
+            container.style.top = '0';
+            
+            container.innerHTML = `
+              <style>
+                @import url('https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&display=swap');
+              </style>
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px;">
+                <div style="width: 85px; height: 85px;">
+                  ${conf.depedLogo ? `<img src="${conf.depedLogo}" style="width: 100%; height: 100%; object-fit: contain;"/>` : ''}
+                </div>
+                <div style="flex: 1; text-align: center; font-size: 13px; line-height: 1.3; font-family: Arial, sans-serif;">
+                  ${processedLetterhead}
+                </div>
+                <div style="width: 85px; height: 85px;">
+                  ${conf.schoolLogo ? `<img src="${conf.schoolLogo}" style="width: 100%; height: 100%; object-fit: contain;"/>` : ''}
+                </div>
+              </div>
+              
+              <div style="text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 40px; font-family: 'Arial Black', Arial, sans-serif;">
+                ${conf.heading}
+              </div>
+              
+              <div style="line-height: 1.8; font-size: 15px;">
+                ${processedBody}
+              </div>
+              
+              <div style="margin-top: 70px; text-align: right; margin-right: 20px;">
+                <div style="font-weight: bold; font-size: 16px;">${conf.signatoryName}</div>
+                <div style="font-size: 14px;">${conf.signatoryTitle}</div>
+              </div>
+              
+              <div style="position: absolute; bottom: 25.4mm; left: 25.4mm; font-size: 11px; font-style: italic; color: #555;">
+                ${conf.footer}
+              </div>
+            `;
+
+            document.body.appendChild(container);
+
+            if (action === 'print') {
+              // Bypass popup blockers by injecting directly into a hidden print iframe
+              const printIframe = document.createElement('iframe');
+              printIframe.style.position = 'absolute';
+              printIframe.style.top = '-9999px';
+              document.body.appendChild(printIframe);
+              
+              const printDoc = printIframe.contentWindow.document;
+              printDoc.open();
+              printDoc.write(`
+                <html>
+                  <head>
+                    <title>Print Certificate</title>
+                    <style>
+                      @page { size: A4 portrait; margin: 0; }
+                      body { margin: 0; background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                      @import url('https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&display=swap');
+                    </style>
+                  </head>
+                  <body>
+                    <div style="width: 210mm; min-height: 297mm; padding: 25.4mm; box-sizing: border-box; font-family: 'Times New Roman', Times, serif; color: black;">
+                      ${container.innerHTML}
+                    </div>
+                  </body>
+                </html>
+              `);
+              printDoc.close();
+
+              // Wait briefly for fonts/images to load into the iframe, then trigger print
+              setTimeout(() => {
+                  printIframe.contentWindow.focus();
+                  printIframe.contentWindow.print();
+                  setTimeout(() => document.body.removeChild(printIframe), 2000);
+                  setIsGenerating(false);
+              }, 1000);
+
+            } else if (action === 'download') {
+              const filename = `Certificate_${client.name.replace(/\s+/g, '_')}.pdf`;
+              const opt = {
+                margin:       0,
+                filename:     filename,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true, logging: false },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+              };
+
+              // Bypass GAS Sandbox Blob Restrictions by outputting a Data URI String
+              await window.html2pdf().set(opt).from(container).toPdf().get('pdf').then((pdf) => {
+                  const pdfDataUri = pdf.output('dataurlstring');
+                  const link = document.createElement('a');
+                  link.href = pdfDataUri;
+                  link.download = filename;
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+              });
+              
+              setIsGenerating(false);
+              onClose();
+            }
+          } catch (err) {
+            console.error("Document Generation Error", err);
+            alert("Error generating document: " + (err.message || "Please check console."));
+            setIsGenerating(false);
+          } finally {
+            if (container && container.parentNode) {
+              container.parentNode.removeChild(container);
+            }
+          }
+        };
+
+        return (
+          <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4 backdrop-blur-sm overflow-y-auto">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col my-8">
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <h3 className="text-lg font-bold text-slate-800 flex items-center">
+                  <Icon name="Award" size={20} className="mr-2 text-blue-600" /> 
+                  Generate Certificate
+                </h3>
+                <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-200 transition-colors">
+                  <Icon name="X" size={20} />
+                </button>
+              </div>
+              
+              <div className="p-6 space-y-5">
+                <div className="bg-blue-50 text-blue-800 text-sm p-3 rounded-lg border border-blue-100 mb-2">
+                  Preparing document for <strong className="font-bold">{client.name}</strong>. Fill in the specific details below to insert them into the template.
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">School Level</label>
+                  <select value={schoolLevel} onChange={(e) => setSchoolLevel(e.target.value)} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                    <option value="Junior High School">Junior High School</option>
+                    <option value="Senior High School">Senior High School</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Grade Level</label>
+                  <input type="text" value={grade} onChange={(e) => setGrade(e.target.value)} placeholder="e.g. 10" className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Learner Reference Number (LRN)</label>
+                  <input type="text" value={lrn} onChange={(e) => setLrn(e.target.value)} placeholder="e.g. 123456789012" className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">School Year</label>
+                  <input type="text" value={schoolYear} onChange={(e) => setSchoolYear(e.target.value)} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                </div>
+              </div>
+
+              <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+                <button onClick={onClose} disabled={isGenerating} className="px-4 py-2 text-slate-600 font-medium hover:bg-slate-200 rounded-lg transition-colors">
+                  Cancel
+                </button>
+                <button onClick={() => executeGeneration('print')} disabled={isGenerating} className="px-4 py-2 bg-slate-800 text-white font-medium hover:bg-slate-900 rounded-lg transition-colors flex items-center shadow-sm disabled:opacity-50">
+                  <Icon name="Printer" size={18} className="mr-2" /> {isGenerating ? 'Processing...' : 'Print'}
+                </button>
+                <button onClick={() => executeGeneration('download')} disabled={isGenerating} className="px-4 py-2 bg-blue-600 text-white font-medium hover:bg-blue-700 rounded-lg transition-colors flex items-center shadow-sm disabled:opacity-50">
+                  <Icon name="Download" size={18} className="mr-2" /> {isGenerating ? 'Processing...' : 'Download PDF'}
+                </button>
+              </div>
             </div>
           </div>
         );
@@ -430,8 +769,8 @@
         const [newClientName, setNewClientName] = useState('');
         const [newClientUsername, setNewClientUsername] = useState('');
         const [expandedClient, setExpandedClient] = useState(null);
+        const [certModalClient, setCertModalClient] = useState(null);
         const [error, setError] = useState('');
-        const [successMessage, setSuccessMessage] = useState('');
         const { addDoc, collection, updateDoc, doc, deleteDoc } = window.FirebaseAPI;
 
         const handleAddClient = async (e) => {
@@ -473,46 +812,16 @@
           } catch (err) { console.error("Delete error", err); }
         }
 
-        const handleGeneratePDF = (client, e) => {
-          e.stopPropagation();
-          if (!certTemplate) {
-            setError("Please upload a certificate template first in the 'Certificate Template' tab.");
-            setTimeout(() => setError(''), 5000);
-            return;
-          }
-          
-          try {
-            setSuccessMessage(`Generating certificate for ${client.name}...`);
-            const { jsPDF } = window.jspdf;
-            // Half A4 Portrait (A5 size format)
-            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a5' });
-            
-            // Add background template image (A5 size is 148.5 x 210 mm)
-            doc.addImage(certTemplate, 'JPEG', 0, 0, 148.5, 210);
-            
-            // Add Client Name (Centered on A5 Portrait)
-            doc.setFontSize(26);
-            doc.setTextColor(30, 30, 30);
-            doc.text(client.name, 74.25, 105, { align: "center" });
-            
-            // Add Date Issued
-            doc.setFontSize(12);
-            doc.setTextColor(80, 80, 80);
-            const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-            doc.text(`Date Issued: ${dateStr}`, 74.25, 120, { align: "center" });
-            
-            // Save PDF
-            doc.save(`Certificate_${client.name.replace(/\s+/g, '_')}.pdf`);
-            setSuccessMessage('');
-          } catch (err) {
-            console.error("PDF Generation Error", err);
-            setError("Failed to generate PDF. Make sure the template is a valid image.");
-            setTimeout(() => setError(''), 5000);
-          }
-        };
-
         return (
           <div className="max-w-4xl mx-auto">
+            {certModalClient && (
+              <CertificateModal 
+                client={certModalClient} 
+                certTemplate={certTemplate} 
+                onClose={() => setCertModalClient(null)} 
+              />
+            )}
+
             <div className="mb-8">
               <h2 className="text-2xl font-bold text-slate-800 mb-2">Student Directory</h2>
               <p className="text-slate-500">Manage client enrollments and track their specific progress.</p>
@@ -523,7 +832,6 @@
                 <Icon name="Plus" size={20} className="mr-2 text-blue-600" /> Enroll New Student
               </h3>
               {error && <div className="mb-4 text-sm text-red-600 bg-red-50 p-3 rounded-lg">{error}</div>}
-              {successMessage && <div className="mb-4 text-sm text-green-600 bg-green-50 p-3 rounded-lg">{successMessage}</div>}
               
               <form onSubmit={handleAddClient} className="flex flex-col md:flex-row gap-4">
                 <input type="text" placeholder="Full Name" value={newClientName} onChange={(e) => setNewClientName(e.target.value)} className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
@@ -555,7 +863,7 @@
                               <div className="h-full bg-green-500 transition-all duration-500" style={{ width: `${progress}%` }} />
                             </div>
                           </div>
-                          <button onClick={(e) => handleGeneratePDF(client, e)} className="text-blue-600 hover:text-blue-800 p-2 rounded-full hover:bg-blue-50 transition-colors" title="Download Certificate PDF">
+                          <button onClick={(e) => { e.stopPropagation(); setCertModalClient(client); }} className="text-blue-600 hover:text-blue-800 p-2 rounded-full hover:bg-blue-50 transition-colors" title="Generate Certificate">
                             <Icon name="Award" size={24} />
                           </button>
                           <button onClick={(e) => handleDeleteClient(client.id, e)} className="text-slate-400 hover:text-red-500 p-2 rounded-full hover:bg-red-50 transition-colors" title="Delete Client">
@@ -598,10 +906,7 @@
 
         const handleSaveSteps = async (newStepsArray) => {
           try { await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'settings', 'global'), { steps: newStepsArray }); } 
-          catch (err) { 
-            console.error("Error saving steps", err); 
-            alert(`Failed to save steps: ${err.message}`);
-          }
+          catch (err) { console.error("Error saving steps", err); }
         };
 
         const handleAddStep = (e) => {
@@ -650,17 +955,43 @@
       }
 
       function AdminCertificate({ certTemplate, db }) {
-        const [preview, setPreview] = useState(certTemplate);
+        const defaultConfig = {
+          depedLogo: null,
+          schoolLogo: null,
+          letterheadText: `<div style="text-align: center;">Republic of the Philippines<br>Department of Education<br>Region V - Bicol<br>Schools Division of Camarines Sur<br><strong>IRAYA HIGH SCHOOL</strong></div>`,
+          heading: "CERTIFICATE OF ENROLMENT",
+          bodyContent: `<div style="text-indent: 40px; text-align: justify; margin-bottom: 15px;">This is to certify that {{STUDENT_NAME}} is officially enrolled as {{SCHOOL_LEVEL}} Grade {{GRADE}} with Learner Reference Number {{LRN}} in this institution this School Year {{SCHOOL_YEAR}}.</div><div style="text-indent: 40px; text-align: justify; margin-bottom: 15px;">This CERTIFICATION is issued upon the request of the aforementioned name for whatever legal purposes that may serve him/her under the law.</div><div style="text-indent: 40px; text-align: justify;">Given this {{DATE}} at Iraya High School, Iraya, Buhi, Camarines Sur.</div>`,
+          signatoryName: "LALYN P. NEGRILLO",
+          signatoryTitle: "Officer-In-charge",
+          footer: "Not valid without School official seal"
+        };
+
+        // Migration from old schema if needed
+        let initialConfig = { ...defaultConfig, ...(certTemplate || {}) };
+        if (certTemplate && certTemplate.paragraph1 && !certTemplate.bodyContent) {
+           initialConfig.bodyContent = `<div style="text-indent: 40px; text-align: justify; margin-bottom: 15px;">${certTemplate.paragraph1}</div><div style="text-indent: 40px; text-align: justify; margin-bottom: 15px;">${certTemplate.paragraph2}</div><div style="text-indent: 40px; text-align: justify;">${certTemplate.paragraph3}</div>`;
+        }
+        
+        // Migrate old plain text letterheads to the new HTML format
+        if (initialConfig.letterheadText && !initialConfig.letterheadText.includes('<')) {
+           initialConfig.letterheadText = `<div style="text-align: center;">${initialConfig.letterheadText.replace(/\n/g, '<br/>')}</div>`;
+        }
+
+        const [config, setConfig] = useState(initialConfig);
         const [isSaving, setIsSaving] = useState(false);
         const [message, setMessage] = useState({ text: '', type: '' });
         const { setDoc, doc } = window.FirebaseAPI;
 
-        const handleImageUpload = (e) => {
+        const handleChange = (key, value) => {
+          setConfig(prev => ({ ...prev, [key]: value }));
+        };
+
+        // Utility to handle logo uploads (DepEd & School) as PNG to preserve transparency
+        const handleLogoUpload = (e, key) => {
           const file = e.target.files[0];
           if (!file) return;
-          
           if (!file.type.match('image.*')) {
-            setMessage({ text: 'Please upload an image file (JPG/PNG).', type: 'error' });
+            setMessage({ text: 'Please upload an image file (PNG/JPG).', type: 'error' });
             return;
           }
 
@@ -669,9 +1000,8 @@
             const img = new window.Image();
             img.src = event.target.result;
             img.onload = () => {
-              // Resize image via canvas to keep it under Firestore's 1MB limit
               const canvas = document.createElement('canvas');
-              const maxWidth = 800; 
+              const maxWidth = 300; 
               const scale = Math.min(maxWidth / img.width, 1);
               canvas.width = img.width * scale;
               canvas.height = img.height * scale;
@@ -679,90 +1009,181 @@
               const ctx = canvas.getContext('2d');
               ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
               
-              const compressedBase64 = canvas.toDataURL('image/jpeg', 0.85);
-              setPreview(compressedBase64);
-              setMessage({ text: 'Preview generated. Click Save to upload.', type: 'info' });
+              const compressedBase64 = canvas.toDataURL('image/png', 0.9);
+              handleChange(key, compressedBase64);
+              setMessage({ text: 'Logo added to preview. Click Save to deploy.', type: 'info' });
             };
           };
           reader.readAsDataURL(file);
         };
 
         const saveTemplate = async () => {
-          if (!preview) return;
           setIsSaving(true);
           setMessage({ text: '', type: '' });
           try {
             await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'settings', 'certificate'), { 
-              templateData: preview,
+              ...config,
               updatedAt: Date.now()
             });
-            setMessage({ text: 'Certificate template saved successfully!', type: 'success' });
+            setMessage({ text: 'Certificate configuration saved successfully!', type: 'success' });
           } catch (err) {
             console.error("Error saving template", err);
-            setMessage({ text: 'Failed to save template. Please check console.', type: 'error' });
+            setMessage({ text: 'Failed to save template. Please check connection.', type: 'error' });
           }
           setIsSaving(false);
         };
 
+        const previewFontClass = config.fontFamily === 'times' ? 'font-serif' : config.fontFamily === 'courier' ? 'font-mono' : 'font-sans';
+
         return (
-          <div className="max-w-3xl mx-auto">
+          <div className="max-w-6xl mx-auto">
             <div className="mb-8">
-              <h2 className="text-2xl font-bold text-slate-800 mb-2">Certificate of Enrollment</h2>
-              <p className="text-slate-500">Upload a background image (Half A4 / A5 Portrait aspect ratio recommended) for the generated certificate. The system will automatically overlay the student's name and the date issued over this image.</p>
+              <h2 className="text-2xl font-bold text-slate-800 mb-2">Certificate Builder</h2>
+              <p className="text-slate-500">Fully customize the A4 certificate layout, letterhead, and text that will be generated for clients.</p>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden p-6">
-              
-              {message.text && (
-                <div className={`mb-6 p-4 rounded-lg flex items-start ${
-                  message.type === 'error' ? 'bg-red-50 text-red-700' : 
-                  message.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-blue-50 text-blue-700'
-                }`}>
-                  <Icon name={message.type === 'error' ? 'AlertCircle' : 'CheckCircle2'} size={20} className="mr-2 mt-0.5" />
-                  {message.text}
-                </div>
-              )}
+            {message.text && (
+              <div className={`mb-6 p-4 rounded-xl flex items-start shadow-sm border ${
+                message.type === 'error' ? 'bg-red-50 text-red-700 border-red-200' : 
+                message.type === 'success' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-blue-50 text-blue-700 border-blue-200'
+              }`}>
+                <Icon name={message.type === 'error' ? 'AlertCircle' : 'CheckCircle2'} size={20} className="mr-3 mt-0.5" />
+                <span className="font-medium">{message.text}</span>
+              </div>
+            )}
 
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-slate-700 mb-2">Upload New Template</label>
-                <div className="flex items-center justify-center w-full">
-                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-300 border-dashed rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors">
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      <Icon name="Upload" size={28} className="text-slate-400 mb-2" />
-                      <p className="mb-2 text-sm text-slate-500"><span className="font-semibold">Click to upload</span></p>
-                      <p className="text-xs text-slate-500">PNG or JPG</p>
-                    </div>
-                    <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
-                  </label>
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+              
+              {/* Form Settings */}
+              <div className="space-y-6 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm h-fit">
+                
+                {/* --- Letterhead Setup --- */}
+                <h3 className="font-bold text-slate-800 text-lg border-b border-slate-100 pb-3 flex items-center">
+                  <Icon name="Image" size={20} className="mr-2 text-blue-600" /> Letterhead Setup
+                </h3>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 flex justify-between">
+                      Left Logo (DepEd)
+                      {config.depedLogo && <span onClick={()=>handleChange('depedLogo', null)} className="text-red-500 cursor-pointer hover:underline">Clear</span>}
+                    </label>
+                    <label className="flex items-center justify-center w-full h-16 border border-slate-300 border-dashed rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100">
+                      {config.depedLogo ? <img src={config.depedLogo} className="h-10 object-contain"/> : <span className="text-xs text-slate-500">Upload Image</span>}
+                      <input type="file" className="hidden" accept="image/*" onChange={(e)=>handleLogoUpload(e, 'depedLogo')} />
+                    </label>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 flex justify-between">
+                      Right Logo (School)
+                      {config.schoolLogo && <span onClick={()=>handleChange('schoolLogo', null)} className="text-red-500 cursor-pointer hover:underline">Clear</span>}
+                    </label>
+                    <label className="flex items-center justify-center w-full h-16 border border-slate-300 border-dashed rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100">
+                      {config.schoolLogo ? <img src={config.schoolLogo} className="h-10 object-contain"/> : <span className="text-xs text-slate-500">Upload Image</span>}
+                      <input type="file" className="hidden" accept="image/*" onChange={(e)=>handleLogoUpload(e, 'schoolLogo')} />
+                    </label>
+                  </div>
+                </div>
+
+                <div className="mt-6">
+                  <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Letterhead Text</label>
+                  <RichTextEditor value={config.letterheadText} onChange={(val) => handleChange('letterheadText', val)} />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 mt-6">Certificate Heading</label>
+                  <input type="text" value={config.heading} onChange={e=>handleChange('heading', e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-lg font-bold text-center font-sans" />
+                </div>
+
+                {/* --- Content Editor --- */}
+                <h3 className="font-bold text-slate-800 text-lg border-b border-slate-100 pb-3 flex items-center mt-8">
+                  <Icon name="BookOpen" size={20} className="mr-2 text-blue-600" /> Rich Text Body
+                </h3>
+
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-sm text-slate-700">
+                  <span className="font-bold text-slate-800 mb-2 block">Smart Tags (Copy & Paste into the editor below):</span>
+                  <div className="flex flex-wrap gap-2">
+                    {['{{STUDENT_NAME}}', '{{SCHOOL_LEVEL}}', '{{GRADE}}', '{{LRN}}', '{{SCHOOL_YEAR}}', '{{DATE}}'].map(tag => (
+                      <span key={tag} className="font-mono text-xs bg-white border border-slate-300 px-2 py-1 rounded text-blue-700 font-semibold cursor-pointer hover:bg-blue-50" title="Copy to clipboard" onClick={() => {navigator.clipboard.writeText(tag); alert(`Copied ${tag}`);}}>{tag}</span>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 mt-2">Certificate Paragraphs</label>
+                  <RichTextEditor value={config.bodyContent} onChange={(val) => handleChange('bodyContent', val)} />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Signatory Name</label>
+                    <input type="text" value={config.signatoryName} onChange={e=>handleChange('signatoryName', e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-right" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Signatory Title</label>
+                    <input type="text" value={config.signatoryTitle} onChange={e=>handleChange('signatoryTitle', e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm text-right" />
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 mt-2">Footer Text</label>
+                  <input type="text" value={config.footer} onChange={e=>handleChange('footer', e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm italic" />
+                </div>
+
+                <div className="pt-4 border-t border-slate-100 flex justify-end">
+                  <button onClick={saveTemplate} disabled={isSaving} className={`flex items-center px-6 py-3 rounded-xl text-white font-medium transition-all ${isSaving ? 'bg-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg'}`}>
+                    {isSaving ? 'Saving to Database...' : 'Save Configuration'}
+                  </button>
                 </div>
               </div>
 
-              {preview && (
-                <div className="mb-6">
-                  <h4 className="text-sm font-medium text-slate-700 mb-2">Template Preview</h4>
-                  <div className="border border-slate-200 rounded-lg overflow-hidden bg-slate-100 relative shadow-sm max-w-[350px] mx-auto aspect-[1/1.414]">
-                    <img src={preview} alt="Certificate Template Preview" className="w-full h-full object-cover" />
+              {/* Live Preview Column */}
+              <div className="space-y-6">
+                <div className="sticky top-6">
+                  <h4 className="text-sm font-bold text-slate-600 uppercase tracking-wider mb-3 px-2 flex justify-between items-end">
+                    Approximate A4 Visual Layout
+                  </h4>
+                  <div className="border border-slate-300 rounded-lg overflow-hidden bg-white relative shadow-md max-w-[420px] mx-auto aspect-[1/1.414]">
                     
-                    {/* Visual mockup of where text will be placed */}
-                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center p-4">
-                      <div className="text-2xl sm:text-3xl font-serif text-slate-800 drop-shadow-sm mt-8">[ Student Name ]</div>
-                      <div className="text-sm text-slate-600 mt-4 drop-shadow-sm">Date Issued: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+                    <div className="absolute inset-0 flex flex-col pointer-events-none p-6 text-slate-800 font-serif">
+                      
+                      {/* Interactive Letterhead Preview */}
+                      <div className="flex justify-between items-start mb-6 w-full">
+                        <div className="w-[12%] aspect-square flex items-center justify-center">
+                          {config.depedLogo && <img src={config.depedLogo} className="w-full h-full object-contain" />}
+                        </div>
+                        
+                        <div 
+                          className="flex-1 flex flex-col font-sans px-2 text-[10px]" 
+                          style={{lineHeight: '1.2'}}
+                          dangerouslySetInnerHTML={{ __html: config.letterheadText }} 
+                        />
+                        
+                        <div className="w-[12%] aspect-square flex items-center justify-center">
+                          {config.schoolLogo && <img src={config.schoolLogo} className="w-full h-full object-contain" />}
+                        </div>
+                      </div>
+
+                      <div className="font-bold text-center mb-6 font-sans" style={{ fontSize: '16px' }}>{config.heading}</div>
+                      
+                      <div 
+                        className="leading-relaxed text-[10px] mb-4" 
+                        dangerouslySetInnerHTML={{ __html: config.bodyContent.replace(/{{.*?}}/g, '_______') }}
+                      />
+                      
+                      <div className="mt-12 self-end text-right">
+                        <div className="font-bold text-[11px]">{config.signatoryName}</div>
+                        <div className="text-[9px]">{config.signatoryTitle}</div>
+                      </div>
+
+                      <div className="absolute bottom-6 left-6 italic text-slate-500 text-[8px]">
+                        {config.footer}
+                      </div>
                     </div>
                   </div>
                 </div>
-              )}
-
-              <div className="flex justify-end pt-4 border-t border-slate-100">
-                <button 
-                  onClick={saveTemplate} 
-                  disabled={!preview || isSaving}
-                  className={`flex items-center px-6 py-2.5 rounded-lg text-white font-medium transition-colors ${
-                    !preview || isSaving ? 'bg-slate-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 shadow-sm'
-                  }`}
-                >
-                  {isSaving ? 'Saving...' : 'Save Template'}
-                </button>
               </div>
+
             </div>
           </div>
         );
