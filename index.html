@@ -86,7 +86,8 @@
           Upload: <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />,
           X: <path d="M18 6L6 18M6 6l12 12" />,
           Printer: <path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z" />,
-          Image: <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M21 8.5V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3.5M10.5 8.5a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM21 15l-5-5L5 21" />
+          Image: <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M21 8.5V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3.5M10.5 8.5a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM21 15l-5-5L5 21" />,
+          Share: <g><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></g>
         };
         return (
           <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -589,10 +590,12 @@
               : (conf.letterheadText || '').replace(/\n/g, '<br/>');
 
             container = document.createElement('div');
-            // FIX 1: Use absolute positioning instead of fixed to prevent mobile rendering engine clipping
+            // Hide the container reliably without using display:none or off-screen coordinates
             container.style.position = 'absolute';
-            container.style.left = '-9999px';
             container.style.top = '0';
+            container.style.left = '0';
+            container.style.zIndex = '-9999';
+            container.style.opacity = '0.01'; // Ensures it is rendered by canvas but invisible to user
             
             container.innerHTML = `
               <style>
@@ -654,27 +657,50 @@
                   scale: 2, 
                   useCORS: true, 
                   logging: false,
-                  // FIX 2: Force a desktop-sized virtual window so Android doesn't squish the canvas
-                  windowWidth: 794 
+                  windowWidth: 794 // Crucial for mobile generation
               },
               jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
 
-            if (action === 'download') {
-                // FIX 3: Use html2pdf's built-in save method which has robust mobile fallbacks
-                await window.html2pdf().set(opt).from(container).save();
+            const pdfWorker = window.html2pdf().set(opt).from(container);
+
+            if (action === 'share') {
+                // Feature for Android/iOS: Native Sharing via Email/Apps
+                const pdfBlob = await pdfWorker.output('blob');
+                const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+                
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    try {
+                        await navigator.share({
+                            title: 'Certificate of Enrollment',
+                            text: `Attached is the Certificate of Enrollment for ${fallbackName}.`,
+                            files: [file]
+                        });
+                    } catch (error) {
+                        console.log('Error sharing or share was cancelled:', error);
+                    }
+                } else {
+                    alert("Your browser/device does not support native file sharing. Please use the Download button instead.");
+                }
+            } else if (action === 'download') {
+                // Fallback direct download
+                const pdfDataUri = await pdfWorker.output('datauristring');
+                const link = document.createElement('a');
+                link.href = pdfDataUri;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
             } else if (action === 'print') {
-                await window.html2pdf().set(opt).from(container).toPdf().get('pdf').then((pdf) => {
+                await pdfWorker.toPdf().get('pdf').then((pdf) => {
                     pdf.autoPrint();
                     try {
                         const newWin = window.open(pdf.output('bloburl'), '_blank');
-                        // Fallback if Android blocks the popup window
                         if (!newWin || newWin.closed || typeof newWin.closed === 'undefined') {
-                            alert("Your mobile browser blocked the print window. Downloading the certificate instead.");
-                            pdf.save(filename);
+                            alert("Your browser blocked the print window. Please use Share or Download instead.");
                         }
                     } catch(e) {
-                        pdf.save(filename); 
+                         alert("Printing is restricted in this environment. Please Download or Share.");
                     }
                 });
             }
@@ -735,15 +761,18 @@
                 </div>
               </div>
 
-              <div className="px-4 py-3 sm:px-6 sm:py-4 border-t border-slate-100 bg-slate-50 flex flex-wrap sm:flex-nowrap justify-end gap-2 sm:gap-3">
-                <button onClick={onClose} disabled={isGenerating} className="w-full sm:w-auto px-4 py-2 text-slate-600 font-medium hover:bg-slate-200 rounded-lg transition-colors order-3 sm:order-1">
+              <div className="px-4 py-3 sm:px-6 sm:py-4 border-t border-slate-100 bg-slate-50 flex flex-wrap justify-end gap-2 sm:gap-3">
+                <button onClick={onClose} disabled={isGenerating} className="w-full sm:w-auto px-4 py-2 text-slate-600 font-medium hover:bg-slate-200 rounded-lg transition-colors order-4 sm:order-1">
                   Cancel
                 </button>
-                <button onClick={() => executeGeneration('print')} disabled={isGenerating} className="w-full sm:w-auto px-4 py-2 bg-slate-800 text-white font-medium hover:bg-slate-900 rounded-lg transition-colors flex justify-center items-center shadow-sm disabled:opacity-50 order-1 sm:order-2">
-                  <Icon name="Printer" size={18} className="mr-2" /> {isGenerating ? 'Processing...' : 'Print'}
+                <button onClick={() => executeGeneration('print')} disabled={isGenerating} className="w-full sm:w-auto px-4 py-2 bg-slate-700 text-white font-medium hover:bg-slate-800 rounded-lg transition-colors flex justify-center items-center shadow-sm disabled:opacity-50 order-3 sm:order-2">
+                  <Icon name="Printer" size={18} className="mr-2" />
                 </button>
-                <button onClick={() => executeGeneration('download')} disabled={isGenerating} className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white font-medium hover:bg-blue-700 rounded-lg transition-colors flex justify-center items-center shadow-sm disabled:opacity-50 order-2 sm:order-3">
-                  <Icon name="Download" size={18} className="mr-2" /> {isGenerating ? 'Processing...' : 'Download PDF'}
+                <button onClick={() => executeGeneration('download')} disabled={isGenerating} className="w-full sm:w-auto px-4 py-2 bg-slate-800 text-white font-medium hover:bg-slate-900 rounded-lg transition-colors flex justify-center items-center shadow-sm disabled:opacity-50 order-2 sm:order-3">
+                  <Icon name="Download" size={18} className="mr-2" /> Download
+                </button>
+                <button onClick={() => executeGeneration('share')} disabled={isGenerating} className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white font-medium hover:bg-blue-700 rounded-lg transition-colors flex justify-center items-center shadow-sm disabled:opacity-50 order-1 sm:order-4">
+                  <Icon name="Share" size={18} className="mr-2" /> Email / Share
                 </button>
               </div>
             </div>
